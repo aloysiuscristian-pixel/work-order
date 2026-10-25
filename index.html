@@ -1214,7 +1214,7 @@ function pkList(){
   const cl=!ws.length&&UI["pkg_"+k.id];
   let tot=0;
   const its=k.items.map(i=>{const p=findSku(i.sku),has=T(i.sku).trim();if(p)tot+=p.price*i.qty;
-   return `<div class="row pkr"><div><label>SKU</label><input value="${esc(i.sku)}" placeholder="SKU" onchange="pkSet('${k.id}','${i.id}','sku',this.value)"></div>
+   return `<div class="row pkr"><div class="cb"><label>SKU</label><input class="cbi" autocomplete="off" value="${esc(i.sku)}" placeholder="Cari SKU / nama sparepart…" onfocus="this.select();pkiOpen(this,'${k.id}','${i.id}',1)" oninput="pkiOpen(this,'${k.id}','${i.id}')" onchange="pkiCommit(this,'${k.id}','${i.id}')" onblur="pkiClose(this)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"><div class="cbl" hidden></div></div>
    <div class="ro">${p?esc(p.name)+" · "+rp(p.price):has?`<span style="color:var(--ac)">Not in list yet (created with Rp 0 when used)</span>`:"-"}</div>
    <div><label>Qty</label><input type="number" min="1" step="1" value="${i.qty}" onchange="pkSet('${k.id}','${i.id}','qty',this.value)"></div>
    <button class="btn x" onclick="pkSet('${k.id}','${i.id}','del')">✕</button></div>`}).join("");
@@ -1228,6 +1228,21 @@ function pkCard(){
 function pkNew(){KQ="";D.pkgs.unshift({id:uid(),name:"New package",items:[{id:uid(),sku:"",qty:1}]});save();draw()}
 function pkDel(id){const k=D.pkgs.find(x=>x.id===id);if(k&&confirm("Delete package "+(k.name||"")+"?")){D.pkgs=D.pkgs.filter(x=>x.id!==id);save();draw()}}
 function pkName(id,v){const k=D.pkgs.find(x=>x.id===id);if(k){k.name=v;save();const e=document.getElementById("pkn_"+id);if(e)e.textContent=v||"Package"}}
+/* SKU search inside package items: type SKU or part name, pick from list */
+function pkiOpen(inp,k,i,all){
+ const ws=all?[]:inp.value.toLowerCase().trim().split(/\s+/).filter(Boolean),box=inp.nextElementSibling,m=[];
+ for(const x of srtP()){if(ws.every(w=>ph(x).includes(w))){m.push(x);if(m.length>=50)break}}
+ box.innerHTML=m.length?m.map(x=>`<div onmousedown="event.preventDefault();pkiPick('${k}','${i}','${x.id}')">${esc(x.sku+" · "+x.name+" · "+rp(x.price))}</div>`).join(""):`<div class="none">No match</div>`;
+ box.hidden=false}
+function pkiClose(inp){inp.nextElementSibling.hidden=true}
+function pkiPick(k,i,pid){const x=D.parts.find(p=>p.id===pid);if(!x)return;const a=document.activeElement;if(a&&a.classList&&a.classList.contains("cbi"))a.value=x.sku;pkSet(k,i,"sku",x.sku)}
+function pkiCommit(inp,k,i){
+ const v=T(inp.value).trim(),kg=D.pkgs.find(x=>x.id===k),it=kg&&kg.items.find(x=>x.id===i);if(!it)return;
+ if(!v||findSku(v)){pkSet(k,i,"sku",v);return}
+ const ws=v.toLowerCase().split(/\s+/).filter(Boolean);
+ /* search text that matches parts but was not picked: ignore it; a brand-new SKU (no match at all) is still accepted */
+ if(D.parts.some(x=>ws.every(w=>ph(x).includes(w)))){inp.value=it.sku;return}
+ pkSet(k,i,"sku",v)}
 function pkSet(id,iid,f,v){const k=D.pkgs.find(x=>x.id===id);if(!k)return;
  if(f==="add")k.items.push({id:uid(),sku:"",qty:1});
  else if(f==="del")k.items=k.items.filter(i=>i.id!==iid);
