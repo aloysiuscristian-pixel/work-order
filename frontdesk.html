@@ -537,7 +537,7 @@ function submit(){
  const pl=F.pl.filter(l=>l.pid).map(l=>{const r={id:l.id,pid:l.pid,qty:Math.max(1,num(l.qty)||1)};if(l.rj)r.rj=l.rj;if(l.rd)r.rd=1;if(l.pk)r.pk=l.pk;if(l.pf)r.pf=l.pf;return r});
  if(po&&!pl.length){msg={t:"er",m:"Add at least one sparepart"};return draw()}
  if(!lines.length&&!pl.length&&!F.notes.length){msg={t:"er",m:"Add at least one work, sparepart or note."};return draw()}
- const e={id:uid(),created:Date.now(),date:today(),queue:po?0:Math.floor(num(F.q))||0,plate,eng:F.eng.trim().toUpperCase(),motor:F.motor.trim(),cust:F.cust.trim(),phone:F.phone.trim(),addr:F.addr.trim(),note:F.note.trim(),
+ const e={id:uid(),created:Date.now(),date:today(),queue:po?0:Math.floor(num(($("f-q")||{}).value||F.q))||nextQ(),plate,eng:F.eng.trim().toUpperCase(),motor:F.motor.trim(),cust:F.cust.trim(),phone:F.phone.trim(),addr:F.addr.trim(),note:F.note.trim(),
   po:po?1:0,lines,pl,disc:Math.max(0,num(F.disc)),discT:F.discT,discN:F.discN.trim(),notes:po?[]:F.notes.map(n=>({id:n.id,text:n.text,why:n.why}))};
  P.push(e);sv(PK,P);F=blank();AF={};msg={t:"ok",m:"Sent to the main app: "+(plate||"Walk-in")+(online?"":" (saved, will send when online)")};scrollTo(0,0);draw();
  flush().then(()=>{setTimeout(refresh,3500)});
@@ -568,7 +568,7 @@ function nextQ(){
  const pe=P.filter(e=>(!e.kind||e.kind==="ovh")&&!e.po&&e.date===td);pe.forEach(e=>{const q=Math.floor(num(e.queue));if(q>m)m=q});
  return m+pe.filter(e=>!(num(e.queue)>0)).length+1}
 const tglLbl=()=>new Date().toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"});
-const qHdr=(po,X)=>{const k=X===OF?"g-q":"f-q";return `<div><label>No. antrian${po?"":" <span class=\"mu\">(kosongkan = otomatis)</span>"}</label><input id="${k}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" ${po?"disabled value=\"-\"":`value="${esc(X.q||"")}" placeholder="Otomatis: ${nextQ()}" oninput="this.value=this.value.replace(/\\D/g,'');${X===OF?"OF":"F"}.q=this.value"`} style="font-weight:700"></div><div><label>Tanggal</label><input readonly tabindex="-1" aria-readonly="true" value="${esc(tglLbl())}" style="cursor:default"></div>`};
+const qHdr=(po,X)=>{const k=X===OF?"g-q":"f-q";return `<div><label>No. antrian</label><input id="${k}" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" ${po?"disabled value=\"-\"":`value="${esc(X.q||nextQ())}" oninput="this.value=this.value.replace(/\\D/g,'');${X===OF?"OF":"F"}.q=this.value"`} style="font-weight:700"></div><div><label>Tanggal</label><input readonly tabindex="-1" aria-readonly="true" value="${esc(tglLbl())}" style="cursor:default"></div>`};
 function vNew(){
  const mo=sel=>`<option value="" ${sel?"":"selected"} disabled>— Select mechanic —</option>`+(L.mechs.includes(sel)||!sel?L.mechs:[...L.mechs,sel]).map(m=>`<option ${m===sel?"selected":""}>${esc(m)}</option>`).join("");
  const ws=["Out of stock","Customer short of money","Other"];
@@ -724,7 +724,7 @@ function submitOvh(){
  if(a<=0&&sp<=0&&!sl.some(l=>l.price>0)&&!OF.notes.length){msg={t:"er",m:"Masukkan harga overhaul, harga jasa, Jasa Spesial, atau catatan."};return draw()}
  if(sl.some(l=>l.price>0&&!l.mech)){msg={t:"er",m:"Pilih mekanik untuk setiap Jasa Spesial."};return draw()}
  const pl=OF.pl.filter(l=>l.pid).map(l=>({id:l.id,pid:l.pid,qty:Math.max(1,num(l.qty)||1),rj:l.rj||"",rjf:num(l.rjf),rjn:l.rjn||"",rd:l.rd?1:0}));
- const e={id:uid(),created:Date.now(),kind:"ovh",date:today(),queue:Math.floor(num(OF.q))||0,plate,eng:OF.eng.trim().toUpperCase(),motor:OF.motor.trim(),cust:OF.cust.trim(),phone:OF.phone.trim(),addr:OF.addr.trim(),name:OF.name.trim(),price:a,mech:OF.mech||"",sid,sname,sprice:sp>0?sp:0,note:"",pl,sl,notes:OF.notes.map(n=>({id:n.id,text:n.text,why:n.why}))};
+ const e={id:uid(),created:Date.now(),kind:"ovh",date:today(),queue:Math.floor(num(($("g-q")||{}).value||OF.q))||nextQ(),plate,eng:OF.eng.trim().toUpperCase(),motor:OF.motor.trim(),cust:OF.cust.trim(),phone:OF.phone.trim(),addr:OF.addr.trim(),name:OF.name.trim(),price:a,mech:OF.mech||"",sid,sname,sprice:sp>0?sp:0,note:"",pl,sl,notes:OF.notes.map(n=>({id:n.id,text:n.text,why:n.why}))};
  P.push(e);sv(PK,P);OF=blankOF();AF2={};msg={t:"ok",m:"Overhaul sent to the main app: "+plate+(online?"":" (saved, will send when online)")};scrollTo(0,0);draw();
  flush().then(()=>{setTimeout(refresh,3500)});
 }
