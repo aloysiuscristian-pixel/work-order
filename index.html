@@ -110,8 +110,9 @@ h2{border-left:4px solid var(--ac);border-right:4px solid var(--ac);padding-left
 @media print{.scn,.toast,.rec{display:none}}
 
 /* ================= MOBILE OPTIMIZATION ================= */
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
-body{overflow-x:hidden;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased;touch-action:manipulation}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{-webkit-font-smoothing:antialiased}
+@media (max-width:700px){body{overflow-x:clip;touch-action:manipulation}}
 img,video,canvas,svg{max-width:100%}
 button,.btn,select,summary,[onclick]{touch-action:manipulation}
 @media (max-width:700px){

@@ -80,8 +80,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:#111;color:#fff;padding:10px 14px;border-radius:8px;z-index:10001;font-size:14px;max-width:90%}
 
 /* ================= MOBILE OPTIMIZATION ================= */
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
-body{overflow-x:hidden;overscroll-behavior-y:none;-webkit-font-smoothing:antialiased;touch-action:manipulation}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+body{-webkit-font-smoothing:antialiased}
+@media (max-width:700px){body{overflow-x:clip;touch-action:manipulation}}
 img,video,canvas,svg{max-width:100%}
 button,.btn,select,summary,[onclick]{touch-action:manipulation}
 @media (max-width:700px){
