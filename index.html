@@ -369,7 +369,8 @@ function pnFormX(PN,fn){
  <div><label>Reason</label><select onchange="PN.w=this.value">${ws.map(w=>`<option ${w===PN.w?"selected":""}>${w}</option>`).join("")}</select></div>
  <div style="align-self:end"><button class="btn p" onclick="${fn}">+ Add note</button></div></div></div>`}
 function pnRefresh(f){const a=document.getElementById("pna");if(a)a.innerHTML=pnAlert();if(f){const e=document.getElementById("pnf");if(e)e.innerHTML=pnForm()}
- const b=document.getElementById("pnaO");if(b)b.innerHTML=pnAlertX(OF);if(f){const e=document.getElementById("pnfO");if(e)e.innerHTML=pnFormO()}}
+ const b=document.getElementById("pnaO");if(b)b.innerHTML=pnAlertX(OF);if(f){const e=document.getElementById("pnfO");if(e)e.innerHTML=pnFormO()}
+ ["pna","pnf","pnaO","pnfO"].forEach(i=>{const e=document.getElementById(i);if(e)mini(e)})}
 function addPNO(){const t=PNO.t.trim();if(!pk(OF.plate)){alert("Enter the plate number first.");return}if(!t){alert("Write what needs to be changed.");return}
  ensureEng(OF,"f");D.notes.push({id:uid(),plate:OF.plate.trim().toUpperCase(),eng:OF.eng||"",motor:OF.motor||"",text:t,why:PNO.w,date:today(),done:false});save();PNO.t="";pnRefresh(1)}
 function addPN(){const t=PN.t.trim();if(!pk(O.plate)){alert("Enter the plate number first.");return}if(!t){alert("Write what needs to be changed.");return}
@@ -402,13 +403,13 @@ function vOrder(){
  <p style="color:var(--mu);font-size:12px;margin:8px 0 0">Applied to service + spareparts. The mechanic payout and tax stay the same; the store absorbs the discount.</p></div>
 <div id="pnf">${pnForm()}</div>
 <div class="card sum" id="sum"></div>
- <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn p" onclick="saveO()">Save order</button><button class="btn" onclick="if(confirm('Clear form?')){O=blank();draw()}">New</button><button class="btn" onclick="print()">Print</button><button class="btn" style="color:#b91c1c;border-color:#b91c1c" onclick="delCur()">Delete</button>${O.po?"":`<select aria-label="Mechanic for all work lines" style="width:auto;min-width:150px" onchange="setAllMech(this.value)">${(()=>{const ms=[...new Set(O.lines.map(l=>l.mech).filter(Boolean))],cur=ms.length===1?ms[0]:"";return mop(cur)})()}</select>`}</div>`;
+ <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn p" onclick="saveO()">Save order</button><button class="btn" onclick="if(confirm('Clear form?')){O=blank();draw()}">New</button><button class="btn" onclick="print()">Print</button><button class="btn" style="color:#b91c1c;border-color:#b91c1c" onclick="delCur()">Delete</button>${O.po?"":`<select aria-label="Mechanic for all work lines" style="width:auto;min-width:150px" onchange="setAllMech(this.value)">${(()=>{const ms=[...new Set(O.lines.map(l=>l.mech).filter(Boolean))],cur=ms.length===1?ms[0]:"";return mop(cur)})()}</select><select aria-label="Status" style="width:auto;min-width:130px" onchange="setSt(this.value)">${STAT.map(s=>`<option ${s===O.status?"selected":""}>${s}</option>`).join("")}</select>`}</div>`;
 }
 function setPO(v){O.po=v;O.queue=nextQ(O.date,v);if(v){O.status="Done";if(!O.done)O.done=O.date}else{O.status="Waiting";O.done="";if(!O.lines.length)O.lines=[{id:uid(),sid:"",name:"",price:0,mech:""}]}draw()}
 function pickS(id,sid){const l=O.lines.find(x=>x.id===id),s=D.services.find(x=>x.id===sid);l.sid=sid;if(s){l.name=s.name;l.price=s.price}draw()}
 function ln(id,k,v){const l=O.lines.find(x=>x.id===id);
  if(k==="mech"&&O.lines.length>1&&O.lines.every(x=>!x.mech)){O.lines.forEach(x=>x.mech=v);draw();return}
- l[k]=v;calc()}
+ l[k]=v;if(k==="mech"){draw();return}calc()}
 function pl(id,k,v){const l=O.pl.find(x=>x.id===id);l[k]=v;if(k==="qty"){const p=part(l.pid)||l.snap,q=(a,t)=>{const e=document.getElementById(a+id);if(e)e.textContent=t};if(p){q("pp_",rp(p.price*l.qty));q("pf_",rp(p.profit*l.qty));q("pr_",rp((p.price-p.profit)*l.qty))}calc()}}
 function totals(o){
  const S=o.lines.reduce((a,l)=>a+(l.sp?0:num(l.price)),0),SS=o.lines.reduce((a,l)=>a+(l.sp?num(l.price):0),0),byS={};o.lines.forEach(l=>{if(l.sp)byS[l.mech]=(byS[l.mech]||0)+num(l.price)*SP.m});

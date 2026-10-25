@@ -300,7 +300,7 @@ const keep=f=>{const y=scrollY;f();scrollTo(0,y)};
 /* ---- list of work ---- */
 function ln(id,k,v){const l=F.lines.find(x=>x.id===id);
  if(k==="mech"&&F.lines.length>1&&F.lines.every(x=>!x.mech)){F.lines.forEach(x=>x.mech=v);keep(draw);return}
- l[k]=v;calc()}
+ l[k]=v;if(k==="mech"){keep(draw);return}calc()}
 function setPO(v){F.po=!!v;if(v){F.lines=[emptyLine()];F.notes=[];F.eng="";F.motor="";F.note=""}keep(draw)}
 function addLine(sp){F.lines.push(emptyLine((F.lines.at(-1)||{}).mech,sp));keep(draw)}
 function rmLine(id){const x=F.lines.find(a=>a.id===id);if(x&&x.pj){const l=F.pl.find(q=>q.id===x.pj);if(l)l.rj=""}F.lines=F.lines.filter(a=>a.id!==id);if(!F.lines.length)F.lines.push(emptyLine());keep(draw)}
