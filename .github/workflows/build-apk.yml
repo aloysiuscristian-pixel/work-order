@@ -61,6 +61,7 @@ jobs:
 
       - name: Customize Android project
         run: |
+          sudo apt-get update && sudo apt-get install -y imagemagick
           RES=android/app/src/main/res
           # launcher icons (every density, adaptive + legacy)
           find $RES -name 'ic_launcher*.png' | while read f; do
