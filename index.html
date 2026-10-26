@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="id"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://api.github.com" crossorigin>
 <link rel="manifest" href="manifest-index.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script>if('serviceWorker' in navigator)addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})</script>
@@ -1559,5 +1560,18 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 window.addEventListener("online",()=>sySync(false));
 draw();
 sySync(false);
+</script>
+<style>
+#instBtn{display:none;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9999;background:#cc0000;color:#fff;border:0;border-radius:12px;padding:13px 16px;font:700 15px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+@media (display-mode:standalone){#instBtn{display:none!important}}
+</style>
+<button id="instBtn" type="button">Pasang aplikasi (tanpa bilah alamat)</button>
+<script>
+(function(){var b=document.getElementById('instBtn'),p;
+if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)return;
+addEventListener('beforeinstallprompt',function(e){e.preventDefault();p=e;b.style.display='block'});
+b.onclick=function(){if(!p)return;p.prompt();p.userChoice.finally(function(){p=null;b.style.display='none'})};
+addEventListener('appinstalled',function(){b.style.display='none'});
+})();
 </script>
 </body></html>
