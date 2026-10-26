@@ -333,7 +333,7 @@ function applyPP(){
   else L.parts.push({id:x.id,sku:x.sku,name:x.name,price:x.price,stock:0,jd:x.jd,jt:x.jt});
   keep.push(x)});
  PPs=keep;sv(PPK,PPs)}
-function softDraw(){const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&(tab==="new"||(a.id||"").startsWith("qe_")))return;draw()}
+function softDraw(){const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))return;draw()}
 function conn(){$("conn").innerHTML='<span class="dot '+(online?"on":"")+'"></span>'+(online?"Connected":"Offline")+(P.length?" · "+P.length+" pending":"")}
 
 /* Send: touches only the inbox file, never the main data. */
@@ -560,7 +560,7 @@ function draw(){
  if(!C.token){a.innerHTML=setup();return}
  const tabs='<div class="tabs"><button class="btn '+(tab==="new"?"on":"")+'" onclick="tab=\'new\';msg=null;draw()">Work Order</button><button class="btn '+(tab==="ovh"?"on":"")+'" onclick="tab=\'ovh\';msg=null;draw()">Overhaul</button><button class="btn '+(tab==="queue"?"on":"")+'" onclick="tab=\'queue\';msg=null;draw();refresh()">Today\'s Queue</button><button class="btn '+(tab==="parts"?"on":"")+'" onclick="tab=\'parts\';msg=null;draw();refresh()">Spareparts</button></div>';
  const m=msg?'<div class="msg '+msg.t+'">'+esc(msg.m)+'</div>':"";
- const y=scrollY;a.innerHTML=tabs+m+(tab==="new"?vNew():tab==="ovh"?vOvh():tab==="parts"?vParts():vQueue());conn();if(tab==="new")calc();if(tab==="ovh")calcO();mini(a);scrollTo(0,y);
+ const y=scrollY;a.innerHTML=tabs+m+(tab==="new"?vNew():tab==="ovh"?vOvh():tab==="parts"?vParts():vQueue())+(tab==="queue"?'<div class="instSlot"></div>':"");conn();if(tab==="new")calc();if(tab==="ovh")calcO();mini(a);scrollTo(0,y);
 }
 /* ---- No. antrian (read-only): next queue number for today = highest queue today + jobs still waiting to be sent + 1. The main app still assigns the official number. ---- */
 function nextQ(){
@@ -785,16 +785,18 @@ draw();refresh();flush();
 setInterval(()=>{if(document.visibilityState==="visible"){flush();refresh()}},15000);
 addEventListener("online",()=>{flush();refresh()});
 </script><style>
-#instBtn{display:none;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9999;background:#cc0000;color:#fff;border:0;border-radius:12px;padding:13px 16px;font:700 15px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4)}
-@media (display-mode:standalone){#instBtn{display:none!important}}
+.instSlot{display:none;margin:0 0 12px}
+.instSlot button{width:100%;background:#cc0000;color:#fff;border:0;border-radius:10px;padding:13px 16px;font:700 15px system-ui,sans-serif}
+@media (display-mode:standalone){.instSlot{display:none!important}}
 </style>
-<button id="instBtn" type="button">Pasang aplikasi (tanpa bilah alamat)</button>
 <script>
-(function(){var b=document.getElementById('instBtn'),p;
+(function(){var p=null;
 if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)return;
-addEventListener('beforeinstallprompt',function(e){e.preventDefault();p=e;b.style.display='block'});
-b.onclick=function(){if(!p)return;p.prompt();p.userChoice.finally(function(){p=null;b.style.display='none'})};
-addEventListener('appinstalled',function(){b.style.display='none'});
+function fill(){if(!p)return;document.querySelectorAll('.instSlot').forEach(function(s){if(s.firstChild)return;s.innerHTML='<button type="button" onclick="instGo()">Pasang aplikasi (tanpa bilah alamat)</button>';s.style.display='block'})}
+window.instGo=function(){if(!p)return;p.prompt();p.userChoice.finally(function(){p=null;document.querySelectorAll('.instSlot').forEach(function(s){s.innerHTML='';s.style.display='none'})})};
+addEventListener('beforeinstallprompt',function(e){e.preventDefault();p=e;fill()});
+addEventListener('appinstalled',function(){p=null;document.querySelectorAll('.instSlot').forEach(function(s){s.innerHTML='';s.style.display='none'})});
+new MutationObserver(fill).observe(document.body,{childList:true,subtree:true});
 })();
 </script>
 </body></html>

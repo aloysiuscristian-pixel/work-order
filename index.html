@@ -1540,7 +1540,7 @@ function jRestore(inp){
 }
 function vSync(){
  const on=!!SY.token,sm="font-size:13px;color:var(--mu)";
- return `<div class="card"><h2>Cloud sync (GitHub)</h2>
+ return `<div class="instSlot"></div><div class="card"><h2>Cloud sync (GitHub)</h2>
  <p style="${sm};margin:0 0 10px">Keeps your data the same on every phone and computer. It is stored in a <b>private Gist in your own GitHub account</b>, never in the public repository. The app keeps working offline and syncs when you are back online.</p>
  ${on?`<div class="sum"><div><span>Status</span><b class="store">Connected</b></div><div><span>Cloud copy</span><b>${SY.gid?"found":"will be created"}</b></div><div><span>Last sync</span><b>${SY.last?esc(new Date(SY.last).toLocaleString()):"-"}</b></div></div>
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--tx);margin:10px 0"><input type="checkbox" style="width:auto" ${SY.auto?"checked":""} onchange="SY.auto=this.checked;sySave()"> Sync automatically after changes</label>
@@ -1562,16 +1562,18 @@ draw();
 sySync(false);
 </script>
 <style>
-#instBtn{display:none;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9999;background:#cc0000;color:#fff;border:0;border-radius:12px;padding:13px 16px;font:700 15px system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4)}
-@media (display-mode:standalone){#instBtn{display:none!important}}
+.instSlot{display:none;margin:0 0 12px}
+.instSlot button{width:100%;background:#cc0000;color:#fff;border:0;border-radius:10px;padding:13px 16px;font:700 15px system-ui,sans-serif}
+@media (display-mode:standalone){.instSlot{display:none!important}}
 </style>
-<button id="instBtn" type="button">Pasang aplikasi (tanpa bilah alamat)</button>
 <script>
-(function(){var b=document.getElementById('instBtn'),p;
+(function(){var p=null;
 if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)return;
-addEventListener('beforeinstallprompt',function(e){e.preventDefault();p=e;b.style.display='block'});
-b.onclick=function(){if(!p)return;p.prompt();p.userChoice.finally(function(){p=null;b.style.display='none'})};
-addEventListener('appinstalled',function(){b.style.display='none'});
+function fill(){if(!p)return;document.querySelectorAll('.instSlot').forEach(function(s){if(s.firstChild)return;s.innerHTML='<button type="button" onclick="instGo()">Pasang aplikasi (tanpa bilah alamat)</button>';s.style.display='block'})}
+window.instGo=function(){if(!p)return;p.prompt();p.userChoice.finally(function(){p=null;document.querySelectorAll('.instSlot').forEach(function(s){s.innerHTML='';s.style.display='none'})})};
+addEventListener('beforeinstallprompt',function(e){e.preventDefault();p=e;fill()});
+addEventListener('appinstalled',function(){p=null;document.querySelectorAll('.instSlot').forEach(function(s){s.innerHTML='';s.style.display='none'})});
+new MutationObserver(fill).observe(document.body,{childList:true,subtree:true});
 })();
 </script>
 </body></html>
