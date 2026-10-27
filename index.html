@@ -570,7 +570,7 @@ function saveO(){
  if(isDone(c)&&!c.done)c.done=c.date;
  c.pl.forEach(l=>{const p=part(l.pid);if(p)l.snap={sku:p.sku,price:p.price,profit:p.profit,name:p.name}});
  const i=D.orders.findIndex(x=>x.id===c.id);stockSync(i>=0?D.orders[i].pl:[],c.pl);if(i>=0)D.orders[i]=c;else D.orders.unshift(c);
- const dn=isDone(c);O=blank();save();tab=dn?"hist":"proc";draw();
+ O=blank();save();tab="order";draw();window.scrollTo(0,0);
 }
 
 function addSvc(){D.services.push({id:uid(),name:'',price:0,sp:SSub==='sp'?1:0});save();draw();window.scrollTo(0,0);const e=document.querySelector('#v .row.rv input');if(e)e.focus()}
