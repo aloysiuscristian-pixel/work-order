@@ -374,7 +374,7 @@ function norm(d){
   parts:A(d.parts).map(x=>({id:nid(x&&x.id),sku:T(x&&x.sku),name:T(x&&x.name),price:num(x&&x.price),profit:num(x&&x.profit),stock:Math.max(0,Math.floor(num(x&&x.stock))),jd:num(x&&x.jd),jt:num(x&&x.jt),fd:x&&x.fd?1:0})),
   orders:A(d.orders).map(o=>{o=o||{};return{id:nid(o.id),queue:(typeof o.queue==="number"||o.queue==="")?o.queue:null,plate:T(o.plate),eng:T(o.eng),motor:T(o.motor),cust:T(o.cust),phone:T(o.phone),addr:T(o.addr),date:T(o.date).slice(0,10),
    lines:A(o.lines).map(l=>({id:nid(l&&l.id),sid:cid(l&&l.sid),name:T(l&&l.name),price:num(l&&l.price),mech:T(l&&l.mech)||MECH0[0],pj:cid(l&&l.pj),sp:l&&l.sp?1:0})),
-   pl:A(o.pl).map(l=>{l=l||{};const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};if(l.rj)r.rj=T(l.rj);if(l.rd)r.rd=1;if(l.pk&&typeof l.pk==="object")r.pk={n:T(l.pk.n),jd:num(l.pk.jd),jt:num(l.pk.jt)};if(l.pf)r.pf=T(l.pf);if(l.sk){r.sk=1;r.ded=Math.max(0,num(l.ded))}if(l.snap&&typeof l.snap==="object")r.snap={sku:T(l.snap.sku),price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name)};return r}),
+   pl:A(o.pl).map(l=>{l=l||{};const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};if(l.rj)r.rj=T(l.rj);if(l.rd)r.rd=1;if(l.pk&&typeof l.pk==="object")r.pk={n:T(l.pk.n),jd:num(l.pk.jd),jt:num(l.pk.jt)};if(l.pf)r.pf=T(l.pf);if(l.pg)r.pg=1;if(l.sk){r.sk=1;r.ded=Math.max(0,num(l.ded))}if(l.snap&&typeof l.snap==="object")r.snap={sku:T(l.snap.sku),price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name)};return r}),
    disc:Math.max(0,num(o.disc)),discT:o.discT==="pct"?"pct":"rp",discN:T(o.discN),po:!!o.po,status:o.status?T(o.status):"Done",due:T(o.due),done:T(o.done),edited:T(o.edited).slice(0,10),
    log:A(o.log).map(g=>({id:nid(g&&g.id),date:T(g&&g.date),note:T(g&&g.note)}))}}),
   motors:Array.isArray(d.motors)?d.motors.map(T):DEFM.slice(),
@@ -387,7 +387,7 @@ function norm(d){
   extras:A(d.extras).map(e=>{e=e||{};return{id:nid(e.id),date:T(e.date).slice(0,10),mech:T(e.mech).toUpperCase(),amount:num(e.amount),note:T(e.note)}}),
   advances:A(d.advances).map(e=>{e=e||{};return{id:nid(e.id),date:T(e.date).slice(0,10),mech:T(e.mech).toUpperCase(),amount:num(e.amount),note:T(e.note),settled:!!e.settled}}),
   mfix:(()=>{const r={};if(d.mfix&&typeof d.mfix==="object")for(const k in d.mfix){const n=T(k).trim().toUpperCase(),v=num(d.mfix[k]);if(n&&v>0)r[n]=v}return r})(),
-  ovh:A(d.ovh).map(e=>{e=e||{};return{id:nid(e.id),date:T(e.date).slice(0,10),plate:T(e.plate),eng:T(e.eng),motor:T(e.motor),cust:T(e.cust),phone:T(e.phone),addr:T(e.addr),name:T(e.name),queue:(typeof e.queue==="number"||e.queue==="")?e.queue:null,status:e.status?T(e.status):"Done",due:T(e.due),done:T(e.done),edited:T(e.edited).slice(0,10),log:A(e.log).map(g=>({id:nid(g&&g.id),date:T(g&&g.date),note:T(g&&g.note)})),price:num(e.price),sname:T(e.sname),sprice:num(e.sprice),mech:T(e.mech).toUpperCase(),pl:A(e.pl).map(l=>{l=l||{};const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};if(l.rj){r.rj=T(l.rj);r.rjf=num(l.rjf);r.rjn=T(l.rjn)}if(l.rd)r.rd=1;if(l.pk&&typeof l.pk==="object")r.pk={n:T(l.pk.n),jd:num(l.pk.jd),jt:num(l.pk.jt)};if(l.pf)r.pf=T(l.pf);if(l.sk){r.sk=1;r.ded=Math.max(0,num(l.ded))}if(l.snap&&typeof l.snap==="object")r.snap={sku:T(l.snap.sku),price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name)};return r})}}),
+  ovh:A(d.ovh).map(e=>{e=e||{};return{id:nid(e.id),date:T(e.date).slice(0,10),plate:T(e.plate),eng:T(e.eng),motor:T(e.motor),cust:T(e.cust),phone:T(e.phone),addr:T(e.addr),name:T(e.name),queue:(typeof e.queue==="number"||e.queue==="")?e.queue:null,status:e.status?T(e.status):"Done",due:T(e.due),done:T(e.done),edited:T(e.edited).slice(0,10),log:A(e.log).map(g=>({id:nid(g&&g.id),date:T(g&&g.date),note:T(g&&g.note)})),price:num(e.price),sname:T(e.sname),sprice:num(e.sprice),mech:T(e.mech).toUpperCase(),pl:A(e.pl).map(l=>{l=l||{};const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};if(l.rj){r.rj=T(l.rj);r.rjf=num(l.rjf);r.rjn=T(l.rjn)}if(l.rd)r.rd=1;if(l.pk&&typeof l.pk==="object")r.pk={n:T(l.pk.n),jd:num(l.pk.jd),jt:num(l.pk.jt)};if(l.pf)r.pf=T(l.pf);if(l.pg)r.pg=1;if(l.sk){r.sk=1;r.ded=Math.max(0,num(l.ded))}if(l.snap&&typeof l.snap==="object")r.snap={sku:T(l.snap.sku),price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name)};return r})}}),
   pkgs:d.pkgs===undefined?DEFPK():A(d.pkgs).map(k=>{k=k||{};return{id:nid(k.id),name:T(k.name),jd:num(k.jd),jt:num(k.jt),items:A(k.items).map(i=>{i=i||{};return{id:nid(i.id),sku:T(i.sku),qty:Math.max(1,Math.floor(num(i.qty))||1)}})}}),
   fdDel:A(d.fdDel).map(cid).filter(Boolean).slice(-400),
   updated:num(d.updated)};
@@ -407,6 +407,24 @@ let O=blank(),tab="order";
 let PMa=null,PMn=-1,PMc=null;
 const part=id=>{if(PMa!==D.parts||PMn!==D.parts.length){PMa=D.parts;PMn=D.parts.length;PMc=new Map(D.parts.map(p=>[p.id,p]))}return PMc.get(id)};
 /* label for a part line: live part if it still exists, otherwise the copy saved with the order */
+/* ---- Sparepart Beli (dibeli dari toko tidak resmi): harga & laba diisi/diubah langsung ---- */
+const isBx=l=>!!(l&&!l.pid&&l.snap&&l.snap.sku==="BELI");
+const bxEmpty=l=>isBx(l)&&!T(l.snap.name).trim()&&!(num(l.snap.price)>0)&&!(num(l.snap.profit)>0);
+const bxLive=l=>isBx(l)&&!bxEmpty(l);
+const bxBad=a=>(a||[]).find(l=>bxLive(l)&&(!T(l.snap.name).trim()||!(num(l.snap.price)>0)));
+const bxArr=w=>w==="o"?O.pl:OF.pl;
+function addBeli(w){bxArr(w).push({id:uid(),pid:"",qty:1,snap:{sku:"BELI",name:"",price:0,profit:0}});draw()}
+function bxSet(w,id,k,v){const l=bxArr(w).find(x=>x.id===id);if(!l||!isBx(l))return;
+ if(k==="qty")l.qty=Math.max(1,num(v));else if(k==="bn")l.snap.name=v;else if(k==="bp")l.snap.price=Math.max(0,num(v));else l.snap.profit=Math.max(0,num(v));
+ const g=(a,t)=>{const e=document.getElementById(a+id);if(e)e.textContent=t};g("bt_",rp(l.snap.price*l.qty));g("bf_",rp(l.snap.profit*l.qty));
+ if(w==="o")calc();else ovCalc()}
+function bxRow(l,w){const q=`bxSet('${w}','${l.id}'`,s=l.snap,rm=w==="o"?`rmPl('${l.id}')`:`rmOPf('${l.id}')`;
+ return `<div class="row pl-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end"><div style="grid-column:1/-1"><label>🛒 Sparepart beli (toko tidak resmi)</label><input value="${esc(s.name)}" autocomplete="off" placeholder="Nama sparepart" oninput="${q},'bn',this.value)"></div>
+ <div><label>Jml</label><input type="number" min="1" value="${l.qty}" oninput="${q},'qty',this.value)"></div>
+ <div><label>Harga satuan</label><input type="number" inputmode="numeric" value="${s.price||""}" placeholder="0" oninput="${q},'bp',this.value)"></div>
+ <div><label>Laba satuan</label><input type="number" inputmode="numeric" value="${s.profit||""}" placeholder="0" oninput="${q},'bl',this.value)"></div>
+ <div class="ro">Total harga<br><b id="bt_${l.id}">${rp(s.price*l.qty)}</b></div><div class="ro">Total laba<br><b id="bf_${l.id}">${rp(s.profit*l.qty)}</b></div>
+ <button class="btn x" onclick="${rm}">✕</button></div>`}
 const pLbl=l=>{const p=part(l.pid);if(p)return p.sku+" · "+p.name;const s=l.snap;return s&&s.name?(s.sku==="BELI"?"🛒 Beli · "+s.name:(s.sku?s.sku+" · ":"")+s.name+" (deleted part)"):""};
 const COL=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
 const srt=(a,f)=>a.map(x=>[f(x),x]).sort((x,y)=>COL.compare(x[0],y[0])).map(x=>x[1]);
@@ -481,18 +499,18 @@ function vOrder(){
  <div><label>Queue no.</label><input type="number" min="1" value="${O.queue==null?"":O.queue}" oninput="O.queue=this.value===''?'':num(this.value)"></div><div><label>Start date</label><input type="date" value="${O.date}" onchange="setStart(this.value)"></div><div><label>Finish date</label><input type="date" value="${O.done||O.date}" onchange="setDone(this.value)"></div><div><label>Customer name</label><input id="o-cust" value="${esc(O.cust||"")}" oninput="O.cust=this.value;calc()" placeholder="Customer name" autocomplete="off"></div><div><label>Phone number</label><input id="o-phone" type="tel" inputmode="tel" value="${esc(O.phone||"")}" oninput="O.phone=this.value;calc()" placeholder="08xxxxxxxxxx" autocomplete="off"></div><div><label>Engine number</label><input id="o-eng" value="${esc(O.eng||"")}" oninput="O.eng=this.value.toUpperCase();EA.o='';autoFill(O,'o',O.plate);pnRefresh();calc()" placeholder="Engine number (auto for NON DS)" autocomplete="off"></div><div style="grid-column:span 2"><label>Address</label><input id="o-addr" value="${esc(O.addr||"")}" oninput="O.addr=this.value;calc()" placeholder="Customer address" autocomplete="off"></div></div></div>
  <div id="pna">${pnAlert()}</div>
  ${O.po?"":procCard()}${O.po?"":`<div class="card" id="lw"><h2>List of Work</h2>
- ${O.lines.map(l=>`<div class="row rs"${l.sp?' style="border-left:3px solid var(--ac);padding-left:6px"':''}><div class="cb"><label>${l.sp?"★ Jasa Spesial (cari)":"Service type (search)"}</label>${cbIn(l.sp?'z':'s',l.id,(D.services.find(x=>x.id===l.sid)||{}).name||"")}</div>
+ ${O.lines.map(l=>`<div class="row rs ${l.sp?"wk-s":"wk-n"}"><div class="cb"><label>${l.sp?"★ Jasa Spesial (cari)":"Service type (search)"}</label>${cbIn(l.sp?'z':'s',l.id,(D.services.find(x=>x.id===l.sid)||{}).name||"")}</div>
  <div><label>Work description</label><input value="${esc(l.name)}" oninput="ln('${l.id}','name',this.value)"></div>
  <div><label>Service price</label><input type="number" inputmode="numeric" ${l.pj?`data-pj="${l.pj}"`:""} value="${l.price}" oninput="ln('${l.id}','price',num(this.value))"></div>
  <div><label>Mechanic</label><select onchange="ln('${l.id}','mech',this.value)">${mop(l.mech)}</select></div>
  <button class="btn x" onclick="rmLine('${l.id}')">✕</button></div>`).join("")}
  <button class="btn" onclick="O.lines.push({id:uid(),sid:'',name:'',price:0,mech:O.lines.at(-1)?.mech||''});draw()">+ Add work</button> <button class="btn p" onclick="O.lines.push({id:uid(),sid:'',name:'',price:0,mech:O.lines.at(-1)?.mech||'',sp:1});draw()">+ Jasa Spesial</button></div>`}
  <div class="card"><h2>Spareparts</h2>
- ${O.pl.map((l,i)=>{const p0=part(l.pid),p=p0||l.snap;return `<div class="row rp"><div class="cb"><label class="lbs">Part (search)${stk(p0)}</label>${cbIn('p',l.id,pLbl(l))}</div>
+ ${pgGrp(O.pl,(l,i)=>{if(isBx(l))return bxRow(l,"o");const p0=part(l.pid),p=p0||l.snap;return `<div class="row rp ${l.pg?"pl-g":"pl-n"}"><div class="cb"><label class="lbs">Part (search)${stk(p0)}</label>${cbIn('p',l.id,pLbl(l))}</div>
  <div><label>Qty</label><input type="number" min="1" value="${l.qty}" oninput="pl('${l.id}','qty',Math.max(1,num(this.value)))"></div>
  <div class="ro">Price<br><b id="pp_${l.id}">${p?rp(p.price*l.qty):"-"}</b></div><div class="ro">Profit<br><b id="pf_${l.id}">${p?rp(p.profit*l.qty):"-"}</b></div><div class="ro rcy">Reorder<br><b id="pr_${l.id}">${p?rp((p.price-p.profit)*l.qty):"-"}</b></div>
- <button class="btn x" onclick="rmPl('${l.id}')">✕</button></div>${recAt(O.pl,i,"o")}`}).join("")}
- <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="O.pl.push({id:uid(),pid:'',qty:1});draw()">+ Add sparepart</button><button class="btn p" type="button" onclick="openScan('o')">📷 Scan barcode</button>${pkSel('o')}</div></div>
+ <button class="btn x" onclick="rmPl('${l.id}')">✕</button></div>${recAt(O.pl,i,"o")}`})}
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="O.pl.push({id:uid(),pid:'',qty:1});draw()">+ Add sparepart</button><button class="btn" type="button" onclick="addBeli('o')">+ Tambah sparepart (beli)</button><button class="btn p" type="button" onclick="openScan('o')">📷 Scan barcode</button>${pkSel('o')}</div></div>
  <div class="card"><h2>Discount</h2><div class="g"><div><label>Type</label><select onchange="O.discT=this.value;calc()"><option value="rp" ${O.discT!=="pct"?"selected":""}>Amount (Rp)</option><option value="pct" ${O.discT==="pct"?"selected":""}>Percent (%)</option></select></div>
  <div><label>Discount</label><input type="number" inputmode="decimal" min="0" value="${O.disc||""}" placeholder="0" oninput="O.disc=Math.max(0,num(this.value));calc()"></div>
  <div style="grid-column:span 2"><label>Discount name (optional)</label><input value="${esc(O.discN||"")}" placeholder="e.g. Loyal customer, Promo Oktober" oninput="O.discN=this.value;calc()"></div></div>
@@ -542,11 +560,12 @@ function delCur(){const i=D.orders.findIndex(x=>x.id===O.id);
  if(!confirm("Delete this order?"))return;
  const o=D.orders[i];(o.pl||[]).forEach(stkBack);fdTomb(o.id);D.orders.splice(i,1);O=blank();save();draw()}
 function saveO(){
- if(O.po){if(!O.pl.some(l=>l.pid)){alert("Add at least one sparepart");return}}
+ if(bxBad(O.pl)){alert("Isi nama dan harga untuk sparepart beli.");return}
+ if(O.po){if(!O.pl.some(l=>l.pid||bxLive(l))){alert("Add at least one sparepart");return}}
  else{if(!O.plate.trim()){alert("Enter plate number");return}
  if(O.status!=="Waiting"&&O.lines.some(l=>!l.mech)){alert("Select a mechanic for every work line (only Waiting status can be saved without a mechanic)");return}}
  if((O.po||isDone(O))&&zpBlock(O.pl))return;
- ensureEng(O,"o");const c=JSON.parse(JSON.stringify(O));c.id=c.id||uid();c.edited=today();setWorkDate(c.date);
+ ensureEng(O,"o");const c=JSON.parse(JSON.stringify(O));c.pl=c.pl.filter(l=>!bxEmpty(l));c.id=c.id||uid();c.edited=today();setWorkDate(c.date);
  if(c.po){c.lines=[];c.status="Done";c.due="";c.pl=c.pl.filter(l=>l.pid||l.snap);if(!c.done)c.done=c.date}
  if(isDone(c)&&!c.done)c.done=c.date;
  c.pl.forEach(l=>{const p=part(l.pid);if(p)l.snap={sku:p.sku,price:p.price,profit:p.profit,name:p.name}});
@@ -755,7 +774,7 @@ function vAdv(){
 let OF={date:"",plate:"",eng:"",motor:"",cust:"",phone:"",addr:"",name:"",price:"",mech:"",sid:"",sname:"",sprice:"",queue:null,status:"Waiting",due:"",done:"",log:[],pl:[],jl:[ovBlank()],sl:[]};
 function ovBlank(){return{id:uid(),sid:"",name:"",price:0,pj:""}}
 const ovJS=()=>OF.jl.reduce((a,l)=>a+num(l.price),0),ovSS=()=>OF.sl.reduce((a,l)=>a+num(l.price),0);
-function ovSumHTML(){let pp=0;OF.pl.forEach(l=>{const p=part(l.pid);if(p)pp+=p.price*l.qty});const o=num(OF.price),s=ovJS(),z=ovSS();
+function ovSumHTML(){let pp=0;OF.pl.forEach(l=>{const p=part(l.pid)||(isBx(l)?l.snap:null);if(p)pp+=p.price*l.qty});const o=num(OF.price),s=ovJS(),z=ovSS();
  return `<div><span>Overhaul</span><b>${rp(o)}</b></div>${s>0?`<div><span>Service</span><b>${rp(s)}</b></div>`:""}${z>0?`<div><span>★ Jasa Spesial</span><b>${rp(z)}</b></div>`:""}${pp>0?`<div><span>Spareparts</span><b>${rp(pp)}</b></div>`:""}<div class="b"><span>TOTAL</span><span>${rp(o+s+z+pp)}</span></div>`}
 function ovCalc(){const e=document.getElementById("osumF");if(e)e.innerHTML=ovSumHTML()}
 function ovJl(id,k,v){const l=OF.jl.find(x=>x.id===id);if(l)l[k]=v;ovCalc()}
@@ -770,6 +789,7 @@ function ovRmSl(id){OF.sl=OF.sl.filter(a=>a.id!==id);draw()}
 function ovUndoF(l){if(!l||!l.rj)return;OF.jl=OF.jl.filter(x=>x.pj!==l.id);if(!OF.jl.length)OF.jl.push(ovBlank());l.rj="";l.rjf=0;l.rjn=""}
 function ovApplyF(l,p,k){ovUndoF(l);const f=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+" ("+JN[k]+")",b=OF.jl.findIndex(x=>!x.sid&&!x.name&&!num(x.price)&&!x.pj),nl={id:uid(),sid:"",name:nm,price:f,pj:l.id};if(b>=0){nl.id=OF.jl[b].id;OF.jl[b]=nl}else OF.jl.push(nl);l.rj=k;l.rjf=f;l.rjn=nm}
 function addOvh(){
+ if(bxBad(OF.pl)){alert("Isi nama dan harga untuk sparepart beli.");return}
  const a=num(OF.price),st=OF.status||"Waiting";if(OF.status==="Done"&&zpBlock(OF.pl))return;ensureEng(OF,"f");
  const jf=OF.jl.filter(l=>num(l.price)>0||l.name.trim()||l.sid),sp=ovJS(),sname=jf.map(l=>l.name.trim()||((D.services.find(x=>x.id===l.sid)||{}).name)||"").filter(Boolean).join(" + ");
  const sl=OF.sl.filter(l=>num(l.price)>0).map(l=>({id:uid(),sid:l.sid||"",name:l.name.trim()||((D.services.find(x=>x.id===l.sid)||{}).name)||"",price:num(l.price),mech:l.mech||OF.mech||"",pj:"",sp:1}));
@@ -778,7 +798,7 @@ function addOvh(){
  if(sl.some(l=>!l.mech)&&st!=="Waiting"){alert("Select a mechanic for every work line (only Waiting status can be saved without a mechanic)");return}
  const d=OF.date||today(),q=OF.queue==null||OF.queue===""?nextQ(d,false):OF.queue,plate=OF.plate.trim().toUpperCase(),done=st==="Done"?(OF.done||today()):"",
   log=OF.log.filter(g=>g.note.trim()).map(g=>({id:uid(),date:g.date,note:g.note}));
- if(a>0||sp>0)D.ovh.unshift({id:uid(),edited:today(),status:st,due:OF.due||"",done,log,date:d,queue:q,plate,eng:OF.eng||"",motor:OF.motor,cust:OF.cust.trim(),phone:OF.phone.trim(),addr:OF.addr.trim(),name:OF.name.trim()||(a>0?"Engine overhaul":(sname||"Service")),price:a,sname:sp>0?(sname||"Service"):"",sprice:sp>0?sp:0,mech:OF.mech,pl:ovDed(OF.pl.filter(l=>part(l.pid)).map(l=>{const q=part(l.pid);return{id:uid(),pid:l.pid,qty:l.qty,rj:l.rj||"",rjf:num(l.rjf),rjn:l.rjn||"",rd:l.rd?1:0,snap:{sku:q.sku,price:q.price,profit:q.profit,name:q.name}}}))});
+ if(a>0||sp>0)D.ovh.unshift({id:uid(),edited:today(),status:st,due:OF.due||"",done,log,date:d,queue:q,plate,eng:OF.eng||"",motor:OF.motor,cust:OF.cust.trim(),phone:OF.phone.trim(),addr:OF.addr.trim(),name:OF.name.trim()||(a>0?"Engine overhaul":(sname||"Service")),price:a,sname:sp>0?(sname||"Service"):"",sprice:sp>0?sp:0,mech:OF.mech,pl:ovDed(OF.pl.filter(l=>part(l.pid)||bxLive(l)).map(l=>{if(isBx(l))return{id:uid(),pid:"",qty:l.qty,snap:{sku:"BELI",price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name).trim()}};const q=part(l.pid);return{id:uid(),pid:l.pid,qty:l.qty,rj:l.rj||"",rjf:num(l.rjf),rjn:l.rjn||"",rd:l.rd?1:0,snap:{sku:q.sku,price:q.price,profit:q.profit,name:q.name}}}))});
  /* Jasa Spesial typed in the overhaul form: its own Work Order (same plate and queue) so the 80% mechanic / 20% store split works as usual */
  if(sl.length)D.orders.unshift({id:uid(),queue:q,plate,eng:OF.eng||"",motor:OF.motor,cust:OF.cust.trim(),phone:OF.phone.trim(),addr:OF.addr.trim(),date:d,lines:sl,pl:[],disc:0,discT:"rp",discN:"",po:false,status:st,due:OF.due||"",done,edited:today(),log:[...log,{id:uid(),date:d,note:"Jasa Spesial dari form Overhaul"}]});
  OF={date:OF.date,plate:"",eng:"",motor:"",cust:"",phone:"",addr:"",name:"",price:"",mech:OF.mech,sid:"",sname:"",sprice:"",queue:null,status:"Waiting",due:"",done:"",log:[],pl:[],jl:[ovBlank()],sl:[]};save();draw()}
@@ -799,7 +819,7 @@ function ovT(e){const v=ovP(e);return{total:num(e.price)+num(e.sprice)+v.pp,stor
 const tt=o=>o._ov?ovT(o):totals(o);
 function ovP(e){let pp=0,pf=0,pr=0;(e.pl||[]).forEach(l=>{const p=part(l.pid)||l.snap;if(!p)return;pp+=p.price*l.qty;pf+=p.profit*l.qty;pr+=(p.price-p.profit)*l.qty});return{pp,pf,pr}}
 function opl(id,k,v){const l=OF.pl.find(x=>x.id===id);l[k]=v;if(k==="qty"){const p=part(l.pid),q=(a,t)=>{const e=document.getElementById(a+id);if(e)e.textContent=t};if(p){q("opp_",rp(p.price*l.qty));q("opf_",rp(p.profit*l.qty));q("opr_",rp((p.price-p.profit)*l.qty))}ovCalc()}}
-function pickOP(id,pid){const l=OF.pl.find(x=>x.id===id);if(l){if(l.rj)ovUndo(OF,l);l.rd="";delete l.pk;delete l.pf}opl(id,"pid",pid);draw()}
+function pickOP(id,pid){const l=OF.pl.find(x=>x.id===id);if(l){if(l.rj)ovUndo(OF,l);l.rd="";delete l.pk;delete l.pf;delete l.pg}opl(id,"pid",pid);draw()}
 function addOP(jid,pid){if(!pid)return;const e=D.ovh.find(x=>x.id===jid),p=part(pid);if(!e||!p)return;e.pl=e.pl||[];const ex=e.pl.find(l=>l.pid===pid);if(ex){ex.qty++;if(ex.sk)dedLine(ex,1)}else{const nl={id:uid(),pid,qty:1,sk:1,ded:0,snap:{sku:p.sku,price:p.price,profit:p.profit,name:p.name}};e.pl.push(nl);dedLine(nl,1)}save();draw()}
 function setOPq(jid,lid,v){const e=D.ovh.find(x=>x.id===jid),l=e&&(e.pl||[]).find(x=>x.id===lid);if(!l)return;const o=num(l.qty),n=Math.max(1,num(v)||1);l.qty=n;if(l.sk){const p=part(l.pid);if(p){if(n>o)dedLine(l,n-o);else if(n<o){const nd=Math.min(num(l.ded),n);p.stock=stkOf(p)+num(l.ded)-nd;l.ded=nd}}}save();draw()}
 function delOP(jid,lid){const e=D.ovh.find(x=>x.id===jid);if(!e)return;{const x=(e.pl||[]).find(l=>l.id===lid);stkBack(x);if(x&&x.rj)ovUndo(e,x)}e.pl=(e.pl||[]).filter(l=>l.id!==lid);save();draw()}
@@ -830,12 +850,12 @@ function vOvh(){
  </div>
  <div id="pnaO">${pnAlertX(OF)}</div>
  <div class="card" id="lwo"><h2>List of Work</h2>
- ${OF.jl.map(l=>`<div class="row rs"><div class="cb"><label>Service type (search)</label>${cbIn('vo',l.id,(D.services.find(x=>x.id===l.sid)||{}).name||"")}</div>
+ ${OF.jl.map(l=>`<div class="row rs wk-n"><div class="cb"><label>Service type (search)</label>${cbIn('vo',l.id,(D.services.find(x=>x.id===l.sid)||{}).name||"")}</div>
  <div><label>Work description</label><input value="${esc(l.name)}" oninput="ovJl('${l.id}','name',this.value)"></div>
  <div><label>Service price</label><input type="number" inputmode="numeric" value="${l.price}" oninput="ovJl('${l.id}','price',num(this.value))"></div>
  <div><label>Mechanic</label><select onchange="OF.mech=this.value;draw()">${mopO(OF.mech)}</select></div>
  <button class="btn x" onclick="ovRmJl('${l.id}')">✕</button></div>`).join("")}
- ${OF.sl.map(l=>`<div class="row rs" style="border-left:3px solid var(--ac);padding-left:6px"><div class="cb"><label>★ Jasa Spesial (cari)</label>${cbIn('zo',l.id,(D.services.find(x=>x.id===l.sid)||{}).name||"")}</div>
+ ${OF.sl.map(l=>`<div class="row rs wk-s"><div class="cb"><label>★ Jasa Spesial (cari)</label>${cbIn('zo',l.id,(D.services.find(x=>x.id===l.sid)||{}).name||"")}</div>
  <div><label>Work description</label><input value="${esc(l.name)}" oninput="ovSl('${l.id}','name',this.value)"></div>
  <div><label>Service price</label><input type="number" inputmode="numeric" value="${l.price}" oninput="ovSl('${l.id}','price',num(this.value))"></div>
  <div><label>Mechanic</label><select onchange="ovSl('${l.id}','mech',this.value)">${mopO(l.mech)}</select></div>
@@ -843,11 +863,11 @@ function vOvh(){
  <button class="btn" onclick="ovAddJl()">+ Add work</button> <button class="btn p" onclick="ovAddSl()">+ Jasa Spesial</button>
  <p style="color:var(--mu);font-size:12px;margin:8px 0 0">Jasa biasa: 98% toko, 2% pajak. ★ Jasa Spesial: 80% mekanik, 20% toko, disimpan sebagai Work Order terpisah (nopol dan antrian sama).</p></div>
  <div class="card"><h2>Spareparts (optional)</h2>
- ${OF.pl.map((l,i)=>{const p=part(l.pid);return `<div class="row rp"><div class="cb"><label class="lbs">Part (search)${stk(p)}</label>${cbIn('o',l.id,p?p.sku+" · "+p.name:"")}</div>
+ ${pgGrp(OF.pl,(l,i)=>{if(isBx(l))return bxRow(l,"f");const p=part(l.pid);return `<div class="row rp ${l.pg?"pl-g":"pl-n"}"><div class="cb"><label class="lbs">Part (search)${stk(p)}</label>${cbIn('o',l.id,p?p.sku+" · "+p.name:"")}</div>
  <div><label>Qty</label><input type="number" min="1" value="${l.qty}" oninput="opl('${l.id}','qty',Math.max(1,num(this.value)))"></div>
  <div class="ro">Price<br><b id="opp_${l.id}">${p?rp(p.price*l.qty):"-"}</b></div><div class="ro">Profit<br><b id="opf_${l.id}">${p?rp(p.profit*l.qty):"-"}</b></div><div class="ro rcy">Reorder<br><b id="opr_${l.id}">${p?rp((p.price-p.profit)*l.qty):"-"}</b></div>
- <button class="btn x" onclick="rmOPf('${l.id}')">✕</button></div>${recAt(OF.pl,i,"f")}`}).join("")}
- <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="OF.pl.push({id:uid(),pid:'',qty:1});draw()">+ Add sparepart</button><button class="btn p" type="button" onclick="openScan('v')">📷 Scan barcode</button>${pkSel('v')}</div>
+ <button class="btn x" onclick="rmOPf('${l.id}')">✕</button></div>${recAt(OF.pl,i,"f")}`})}
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="OF.pl.push({id:uid(),pid:'',qty:1});draw()">+ Add sparepart</button><button class="btn" type="button" onclick="addBeli('f')">+ Tambah sparepart (beli)</button><button class="btn p" type="button" onclick="openScan('v')">📷 Scan barcode</button>${pkSel('v')}</div>
  <p style="color:var(--mu);font-size:12px;margin:8px 0 0">Spareparts are added to the customer total. The sparepart profit goes to the store; there is no mechanic share or tax on parts.</p></div>
  <div id="pnfO">${pnFormO()}</div>
  <div class="card sum" id="osumF">${ovSumHTML()}</div>
@@ -1058,7 +1078,7 @@ function cbClose(inp,k,id){
  const cur=k==="vo"?(D.services.find(x=>x.id===(OF.jl.find(l=>l.id===id)||{}).sid)||{}).name:k==="zo"?(D.services.find(x=>x.id===(OF.sl.find(l=>l.id===id)||{}).sid)||{}).name:(k==="s"||k==="z")?(D.services.find(x=>x.id===(O.lines.find(l=>l.id===id)||{}).sid)||{}).name:(()=>pLbl((k==="o"?OF:O).pl.find(l=>l.id===id)||{}))();
  inp.value=cur||"";
 }
-function pickP(id,pid){const l=O.pl.find(x=>x.id===id);if(l&&l.rj)dropRec(l);if(l){l.rd="";delete l.pk;delete l.pf}pl(id,"pid",pid);draw()}
+function pickP(id,pid){const l=O.pl.find(x=>x.id===id);if(l&&l.rj)dropRec(l);if(l){l.rd="";delete l.pk;delete l.pf;delete l.pg}pl(id,"pid",pid);draw()}
 function flt(inp){const q=inp.value.toLowerCase().trim();inp.closest(".card").querySelectorAll(".row").forEach(r=>{const t=[...r.querySelectorAll("input")].map(i=>i.value).join(" ").toLowerCase();r.style.display=t.includes(q)?"":"none"})}
 
 /* ---------- export spareparts (same columns as import) ---------- */
@@ -1112,6 +1132,8 @@ function stockSync(prev,next){
  next.forEach(l=>{const o=pm.get(l.id);
   if(o&&!o.sk){delete l.sk;delete l.ded;return}   /* order saved before stock tracking existed: leave stock alone */
   l.sk=1;l.ded=0;if(part(l.pid))dedLine(l,Math.max(1,num(l.qty)))})}
+/* baris sparepart dari paket digabung dalam 1 border */
+const pgGrp=(L,f)=>{let h="",o=false;L.forEach((l,i)=>{const g=!isBx(l)&&!!l.pg;if(g&&!o){h+='<div class="pkgrp">';o=true}else if(!g&&o){h+='</div>';o=false}h+=f(l,i)});return h+(o?'</div>':'')};
 const stk=p=>p?`<span style="color:${stkOf(p)<=0?"var(--ac)":"var(--mu)"}"> · Stok: ${stkOf(p)}${stkOf(p)<=0?" (kosong, tetap boleh)":""}</span>`:"";
 /* ---------- Rekomendasi jasa ganti sparepart ---------- */
 const JN={d:"tanpa servis",t:"dengan servis"},jfee=(p,k)=>p?num(k==="d"?p.jd:p.jt):0;
@@ -1197,7 +1219,7 @@ function pkAdd(w,id){
  if(w==="o"||w==="v"){
   const L=w==="o"?O.pl:OF.pl;
   const got=[];
-  res.forEach(({p,qty})=>{let ex=L.find(l=>l.pid===p.id);if(ex)ex.qty=Math.max(1,num(ex.qty))+qty;else{const e=L.find(l=>!l.pid);if(e){e.pid=p.id;e.qty=qty;ex=e}else{ex={id:uid(),pid:p.id,qty};L.push(ex)}}got.push(ex)});
+  res.forEach(({p,qty})=>{let ex=L.find(l=>l.pid===p.id);if(ex)ex.qty=Math.max(1,num(ex.qty))+qty;else{const e=L.find(l=>!l.pid&&!isBx(l));if(e){e.pid=p.id;e.qty=qty;e.pg=1;ex=e}else{ex={id:uid(),pid:p.id,qty,pg:1};L.push(ex)}}got.push(ex)});
   pkMark(L,got,k,pkOn,w);
  }else{
   const e=D.ovh.find(x=>x.id===w);if(!e)return;e.pl=e.pl||[];const got=[];
@@ -1317,12 +1339,12 @@ function scNew(){
 function scAdd(p){
  let l=O.pl.find(x=>x.pid===p.id),again=false;
  if(l){l.qty=Math.max(1,num(l.qty))+1;again=true}
- else{const e=O.pl.find(x=>!x.pid);if(e){e.pid=p.id;l=e}else{l={id:uid(),pid:p.id,qty:1};O.pl.push(l)}}
+ else{const e=O.pl.find(x=>!x.pid&&!isBx(x));if(e){e.pid=p.id;l=e}else{l={id:uid(),pid:p.id,qty:1};O.pl.push(l)}}
  draw();toast("✓ "+p.name+(again?" · qty "+l.qty:" ditambahkan"));
  setTimeout(()=>{const e=document.getElementById("rec_"+l.id)||document.getElementById("pp_"+l.id);if(e)e.scrollIntoView({block:"center",behavior:"smooth"})},60)}
 function scAddOF(p){
  let l=OF.pl.find(x=>x.pid===p.id);
- if(l)l.qty=Math.max(1,num(l.qty))+1;else{l=OF.pl.find(x=>!x.pid);if(l)l.pid=p.id;else{l={id:uid(),pid:p.id,qty:1};OF.pl.push(l)}}
+ if(l)l.qty=Math.max(1,num(l.qty))+1;else{l=OF.pl.find(x=>!x.pid&&!isBx(x));if(l)l.pid=p.id;else{l={id:uid(),pid:p.id,qty:1};OF.pl.push(l)}}
  draw();toast("✓ "+p.name+" ditambahkan");
  setTimeout(()=>{const e=document.getElementById("rec_"+l.id)||document.getElementById("opp_"+l.id);if(e)e.scrollIntoView({block:"center",behavior:"smooth"})},60)}
 function scFind(p){PQ=p.sku;PLim=50;draw();toast("Ditemukan: "+p.sku+" · "+p.name)}
@@ -1680,13 +1702,28 @@ new MutationObserver(fill).observe(document.body,{childList:true,subtree:true});
 </script>
 <style>
 /* tombol "+ Tambah ..." dibuat menonjol supaya mudah terlihat di HP / tablet */
-.btn.addb{background:color-mix(in srgb,var(--ac) 12%,var(--card));border:2px solid var(--ac);color:var(--ac);font-weight:700;min-height:48px;font-size:15px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
-.btn.addb:active{background:var(--ac);color:#fff}
+.btn.addb{--c:#475569;background:var(--c)!important;border:2px solid var(--c)!important;color:#fff!important;font-weight:700;border-radius:10px;min-height:48px;font-size:15px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.btn.addb.ab-wk{--c:#d97706}.btn.addb.ab-sp{--c:#7c3aed}.btn.addb.ab-pt{--c:#2563eb}.btn.addb.ab-bx{--c:#0d9488}
+.btn.addb:active{filter:brightness(.85);transform:scale(.97)}
+/* pembeda hasil tombol: sparepart biasa = biru, sparepart beli = hijau tosca, dari paket = hijau */
+.row.pl-n,.row.pl-b,.row.pl-k{border-style:solid!important;border-width:2px!important;border-radius:10px!important;padding:10px!important;margin-bottom:10px!important}
+.row.pl-n{border-color:#2563eb!important;background:color-mix(in srgb,#2563eb 7%,var(--card))}
+.row.pl-b{border-color:#0d9488!important;background:color-mix(in srgb,#0d9488 7%,var(--card))}
+.row.pl-k{border-color:#16a34a!important;background:color-mix(in srgb,#16a34a 7%,var(--card))}
+/* paket: semua baris sparepart dalam 1 border hijau */
+.pkgrp{border:2px solid #16a34a;border-radius:10px;background:color-mix(in srgb,#16a34a 7%,var(--card));padding:2px 10px;margin-bottom:10px}
+.pkgrp>.row{border:0!important;border-bottom:1px dashed color-mix(in srgb,#16a34a 55%,transparent)!important;border-radius:0!important;background:transparent!important;padding:10px 0!important;margin:0!important}
+.pkgrp>.row:last-child{border-bottom:0!important}
+.pkgrp>.rec{margin:6px 0 10px}
+/* pembeda pekerjaan: jasa biasa = oranye, Jasa Spesial = ungu */
+.row.wk-n,.row.wk-s{border-style:solid!important;border-width:2px!important;border-radius:10px!important;padding:10px!important;margin-bottom:10px!important}
+.row.wk-n{border-color:#d97706!important;background:color-mix(in srgb,#d97706 7%,var(--card))}
+.row.wk-s{border-color:#7c3aed!important;background:color-mix(in srgb,#7c3aed 7%,var(--card))}
 @media (max-width:900px){.btn.addb{min-height:52px;font-size:16px}}
 </style>
 <script>
 (function(){var t=0;
-function tag(){t=0;document.querySelectorAll("button.btn:not(.p):not(.x):not(.addb)").forEach(function(b){if(/^\s*\+/.test(b.textContent)&&!b.closest(".hd"))b.classList.add("addb")})}
+function tag(){t=0;document.querySelectorAll("button.btn:not(.x):not(.addb)").forEach(function(b){var x=b.textContent;if(/^\s*\+/.test(x)&&!b.closest(".hd")){var k=/jasa spesial/i.test(x)?"sp":/\(beli\)/i.test(x)?"bx":/pekerjaan|add work/i.test(x)?"wk":/sparepart/i.test(x)?"pt":"";b.classList.add("addb");if(k)b.classList.add("ab-"+k)}})}
 function q(){if(!t)t=setTimeout(tag,60)}
 new MutationObserver(q).observe(document.body,{childList:true,subtree:true,characterData:true});tag()})();
 </script>

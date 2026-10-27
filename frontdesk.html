@@ -383,10 +383,10 @@ function cbClose(inp){inp.nextElementSibling.hidden=true;if(inp.dataset.clr)inp.
 const cbIn=(kind,id,val,ph,clr)=>`<div class="cb"><input class="cbi" type="search" autocomplete="off" value="${esc(val)}" placeholder="${ph}" ${clr?'data-clr="1"':""} onfocus="this.select();cbOpen(this,'${kind}','${id}',1)" oninput="cbOpen(this,'${kind}','${id}')" onblur="cbClose(this)"><div class="cbl" hidden></div></div>`;
 function cbPick(kind,id,val){const a=document.activeElement;if(a&&a.blur)a.blur();
  if(kind==="s"||kind==="z"){const l=F.lines.find(x=>x.id===id),s=L.services.find(x=>x.id===val);if(l&&s){l.sid=s.id;l.name=s.name;l.price=s.price}keep(draw)}
- else if(kind==="p"){const l=F.pl.find(x=>x.id===id);if(l){l.pid=val;if(l.rj)dropRec(l)}keep(draw)}
+ else if(kind==="p"){const l=F.pl.find(x=>x.id===id);if(l){l.pid=val;delete l.pg;if(l.rj)dropRec(l)}keep(draw)}
  else if(kind==="vo"){const l=OF.jl.find(x=>x.id===id),s=L.services.find(x=>x.id===val);if(l&&s){l.sid=s.id;l.name=s.name;l.price=s.price}keep(draw);calcO()}
  else if(kind==="zo"){const l=OF.sl.find(x=>x.id===id),s=L.services.find(x=>x.id===val);if(l&&s){l.sid=s.id;l.name=s.name;l.price=s.price}keep(draw);calcO()}
- else if(kind==="o"){const l=OF.pl.find(x=>x.id===id);if(l){if(l.rj)ovUndo(l);l.rd="";delete l.pk;delete l.pf;l.pid=val}keep(draw)}
+ else if(kind==="o"){const l=OF.pl.find(x=>x.id===id);if(l){if(l.rj)ovUndo(l);l.rd="";delete l.pk;delete l.pf;delete l.pg;l.pid=val}keep(draw)}
  else if(kind==="k2")pkAdd(val,"v")
  else pkAdd(val)}
 const keep=f=>{const y=scrollY;f();scrollTo(0,y)};
@@ -408,6 +408,8 @@ function recHTML(l){
  const op=k=>{const f=jfee(p,k);if(!(f>0))return"";return `<button type="button" class="btn opt${l.rj===k?" on":""}" onclick="setRec('${l.id}','${k}')"><b>Add service fee ${JN[k]}</b> · ${rp(f)}</button>`};
  return `<div class="rec"><span class="rct">Service fee to replace ${p.pkg?"package ":""}<b>${esc(p.name)}</b>?</span><button type="button" class="btn rcx" onclick="closeRec('${l.id}')" aria-label="Close">✕</button><div class="opts">${op("d")}${op("t")}</div></div>`}
 /* package recommendation is shown after the LAST part of its package; per-part recommendations stay under their own row */
+/* baris sparepart dari paket digabung dalam 1 border */
+const pgGrp=(L,f)=>{let h="",o=false;L.forEach((l,i)=>{const g=!l.bx&&!!l.pg;if(g&&!o){h+='<div class="pkgrp">';o=true}else if(!g&&o){h+='</div>';o=false}h+=f(l,i)});return h+(o?'</div>':'')};
 function recAt(L,i,fn){
  const l=L[i];if(!l)return"";let h="";
  if(!l.pk)h+=fn(l);
@@ -441,7 +443,7 @@ function bxSet(w,id,k,v){const l=bxArr(w).find(x=>x.id===id);if(!l)return;l[k]=v
  const e=$("bt_"+id);if(e)e.textContent=rp(num(l.bp)*Math.max(1,num(l.qty)));
  if(w==="v")calcO();else calc()}
 function bxRow(l,w){const q=`bxSet('${w}','${l.id}'`;
- return `<div class="row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end;border-left:3px solid var(--ac);padding-left:8px;margin-bottom:8px"><div style="grid-column:1/-1"><label>🛒 Sparepart beli (toko tidak resmi)</label><input value="${esc(l.bn)}" autocomplete="off" placeholder="Nama sparepart" oninput="${q},'bn',this.value)"></div>
+ return `<div class="row pl-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end"><div style="grid-column:1/-1"><label>🛒 Sparepart beli (toko tidak resmi)</label><input value="${esc(l.bn)}" autocomplete="off" placeholder="Nama sparepart" oninput="${q},'bn',this.value)"></div>
  <div><label>Jml</label><input type="number" min="1" value="${l.qty}" oninput="${q},'qty',Math.max(1,num(this.value)))"></div>
  <div><label>Harga satuan</label><input type="number" inputmode="numeric" value="${esc(l.bp)}" placeholder="0" oninput="${q},'bp',this.value)"></div>
  <div><label>Laba satuan</label><input type="number" inputmode="numeric" value="${esc(l.bl)}" placeholder="0" oninput="${q},'bl',this.value)"></div>
@@ -455,7 +457,7 @@ function pkAdd(id,w){
  if(!items.length){alert("This package has no items yet.");return}
  const miss=[],res=[];items.forEach(i=>{const p=findSku(i.sku);if(p)res.push({p,qty:i.qty});else miss.push(i.sku)});
  const got=[];
- res.forEach(({p,qty})=>{let ex=PL.find(l=>l.pid===p.id);if(ex)ex.qty=Math.max(1,num(ex.qty))+qty;else{const e=PL.find(l=>!l.pid&&!l.bx);if(e){e.pid=p.id;e.qty=qty;ex=e}else{ex={id:uid(),pid:p.id,qty};PL.push(ex)}}got.push(ex)});
+ res.forEach(({p,qty})=>{let ex=PL.find(l=>l.pid===p.id);if(ex)ex.qty=Math.max(1,num(ex.qty))+qty;else{const e=PL.find(l=>!l.pid&&!l.bx);if(e){e.pid=p.id;e.qty=qty;e.pg=1;ex=e}else{ex={id:uid(),pid:p.id,qty,pg:1};PL.push(ex)}}got.push(ex)});
  if(num(k.jd)>0||num(k.jt)>0){
   if(!got.some(l=>l.pk&&l.pk.n===(k.name||"Package"))){const ld=got.find(l=>!l.pk&&!l.rj);
    if(ld){ld.pk={n:k.name||"Package",jd:num(k.jd),jt:num(k.jt)};ld.rd=0;got.forEach(l=>{if(l!==ld&&!l.pk&&!l.rj)l.pf=ld.id})}}}
@@ -606,18 +608,18 @@ function vNew(){
  ${F.po?"":`<div class="s2"><label>Complaint / message for the mechanic (optional)</label><input value="${esc(F.note)}" oninput="F.note=this.value" placeholder="e.g. engine noise, brake soft"></div>`}</div></div>
  <div id="pna">${pnAlertHTML()}</div>
  ${F.po?"":`<div class="card"><h2>List of Work</h2>
- ${F.lines.map(l=>`<div class="row rs"${l.sp?' style="border-left:3px solid var(--ac);padding-left:6px"':''}><div><label>${l.sp?"★ Jasa Spesial (cari)":"Service type (search)"}</label>${cbIn(l.sp?"z":"s",l.id,(L.services.find(x=>x.id===l.sid)||{}).name||"","Search or pick…")}</div>
+ ${F.lines.map(l=>`<div class="row rs ${l.sp?"wk-s":"wk-n"}"><div><label>${l.sp?"★ Jasa Spesial (cari)":"Service type (search)"}</label>${cbIn(l.sp?"z":"s",l.id,(L.services.find(x=>x.id===l.sid)||{}).name||"","Search or pick…")}</div>
  <div><label>Work description</label><input value="${esc(l.name)}" oninput="ln('${l.id}','name',this.value)"></div>
  <div><label>Service price</label><input type="number" inputmode="numeric" value="${l.price}" oninput="ln('${l.id}','price',num(this.value))"></div>
  <div><label>Mechanic</label><select onchange="ln('${l.id}','mech',this.value)">${mo(l.mech)}</select></div>
  <button class="btn x" onclick="rmLine('${l.id}')" aria-label="Remove">✕</button></div>`).join("")}
  <button class="btn" onclick="addLine()">+ Add work</button> <button class="btn p" onclick="addLine(1)">+ Jasa Spesial</button></div>`}
  <div class="card"><h2>Spareparts</h2>
- ${F.pl.map((l,i)=>{if(l.bx)return bxRow(l,"f");const p=part(l.pid);return `<div class="row rp"><div><label>Part (search)${p?` <span style="color:${p.stock<=0?"var(--ac)":"var(--mu)"}">· Stock: ${p.stock}${p.stock<=0?" (empty, still allowed)":""}</span>`:""}</label>${cbIn("p",l.id,pLbl(l),"Search SKU or name…")}</div>
+ ${pgGrp(F.pl,(l,i)=>{if(l.bx)return bxRow(l,"f");const p=part(l.pid);return `<div class="row rp ${l.pg?"pl-g":"pl-n"}"><div><label>Part (search)${p?` <span style="color:${p.stock<=0?"var(--ac)":"var(--mu)"}">· Stock: ${p.stock}${p.stock<=0?" (empty, still allowed)":""}</span>`:""}</label>${cbIn("p",l.id,pLbl(l),"Search SKU or name…")}</div>
  <div><label>Qty</label><input type="number" min="1" value="${l.qty}" oninput="pl_('${l.id}','qty',Math.max(1,num(this.value)))"></div>
  <div class="ro">Price<br><b id="pp_${l.id}">${p?rp(p.price*l.qty):"-"}</b></div>
- <button class="btn x" onclick="rmPl('${l.id}')" aria-label="Remove">✕</button></div>${recAt(F.pl,i,recHTML)}`}).join("")}
- <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" onclick="addPlEmpty()">+ Add sparepart</button><button class="btn" type="button" onclick="addBeli('f')">+ Sparepart Beli</button><button class="btn p" type="button" onclick="openScan('o')">📷 Scan barcode</button>
+ <button class="btn x" onclick="rmPl('${l.id}')" aria-label="Remove">✕</button></div>${recAt(F.pl,i,recHTML)}`})}
+ <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" onclick="addPlEmpty()">+ Add sparepart</button><button class="btn" type="button" onclick="addBeli('f')">+ Tambah sparepart (beli)</button><button class="btn p" type="button" onclick="openScan('o')">📷 Scan barcode</button>
  ${L.pkgs.length?`<div style="flex:1 1 200px;max-width:340px">${cbIn("k","new","","📦 Add package (search)…",1)}</div>`:""}</div></div>
  <div class="card"><h2>Discount</h2><div class="g"><div><label>Type</label><select onchange="F.discT=this.value;calc()"><option value="rp" ${F.discT!=="pct"?"selected":""}>Amount (Rp)</option><option value="pct" ${F.discT==="pct"?"selected":""}>Percent (%)</option></select></div>
  <div><label>Discount</label><input type="number" inputmode="decimal" min="0" value="${F.disc||""}" placeholder="0" oninput="F.disc=Math.max(0,num(this.value));calc()"></div>
@@ -714,23 +716,23 @@ function vOvh(){
  </div></div>
  <div id="pna2">${pnAlertO()}</div>
  <div class="card"><h2>List of Work</h2>
- ${OF.jl.map(l=>`<div class="row rs"><div><label>Service type (search)</label>${cbIn("vo",l.id,(L.services.find(x=>x.id===l.sid)||{}).name||"","Search or pick…")}</div>
+ ${OF.jl.map(l=>`<div class="row rs wk-n"><div><label>Service type (search)</label>${cbIn("vo",l.id,(L.services.find(x=>x.id===l.sid)||{}).name||"","Search or pick…")}</div>
  <div><label>Work description</label><input value="${esc(l.name)}" oninput="ovJl('${l.id}','name',this.value)"></div>
  <div><label>Service price</label><input type="number" inputmode="numeric" value="${l.price}" oninput="ovJl('${l.id}','price',num(this.value))"></div>
  <div><label>Mechanic</label><select onchange="OF.mech=this.value;keep(draw)">${mo(OF.mech)}</select></div>
  <button class="btn x" onclick="ovRmJl('${l.id}')" aria-label="Remove">✕</button></div>`).join("")}
- ${OF.sl.map(l=>`<div class="row rs" style="border-left:3px solid var(--ac);padding-left:6px"><div><label>★ Jasa Spesial (cari)</label>${cbIn("zo",l.id,(L.services.find(x=>x.id===l.sid)||{}).name||"","Search or pick…")}</div>
+ ${OF.sl.map(l=>`<div class="row rs wk-s"><div><label>★ Jasa Spesial (cari)</label>${cbIn("zo",l.id,(L.services.find(x=>x.id===l.sid)||{}).name||"","Search or pick…")}</div>
  <div><label>Work description</label><input value="${esc(l.name)}" oninput="ovSl('${l.id}','name',this.value)"></div>
  <div><label>Service price</label><input type="number" inputmode="numeric" value="${l.price}" oninput="ovSl('${l.id}','price',num(this.value))"></div>
  <div><label>Mechanic</label><select onchange="ovSl('${l.id}','mech',this.value)">${mo(l.mech)}</select></div>
  <button class="btn x" onclick="ovRmSp('${l.id}')" aria-label="Remove">✕</button></div>`).join("")}
  <button class="btn" type="button" onclick="ovAddJl()">+ Add work</button> <button class="btn p" type="button" onclick="ovAddSp()">+ Jasa Spesial</button></div>
  <div class="card"><h2>Spareparts (optional)</h2>
- ${OF.pl.map((l,i)=>{if(l.bx)return bxRow(l,"v");const p=part(l.pid);return `<div class="row rp"><div><label>Part (search)${p?` <span style="color:${p.stock<=0?"var(--ac)":"var(--mu)"}">· Stock: ${p.stock}${p.stock<=0?" (empty, still allowed)":""}</span>`:""}</label>${cbIn("o",l.id,pLbl(l),"Search SKU or name…")}</div>
+ ${pgGrp(OF.pl,(l,i)=>{if(l.bx)return bxRow(l,"v");const p=part(l.pid);return `<div class="row rp ${l.pg?"pl-g":"pl-n"}"><div><label>Part (search)${p?` <span style="color:${p.stock<=0?"var(--ac)":"var(--mu)"}">· Stock: ${p.stock}${p.stock<=0?" (empty, still allowed)":""}</span>`:""}</label>${cbIn("o",l.id,pLbl(l),"Search SKU or name…")}</div>
  <div><label>Qty</label><input type="number" min="1" value="${l.qty}" oninput="opl('${l.id}','qty',Math.max(1,num(this.value)))"></div>
  <div class="ro">Price<br><b id="opp_${l.id}">${p?rp(p.price*l.qty):"-"}</b></div>
- <button class="btn x" onclick="rmOPf('${l.id}')" aria-label="Remove">✕</button></div>${recAt(OF.pl,i,recHTMLO)}`}).join("")}
- <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" onclick="OF.pl.push({id:uid(),pid:'',qty:1});keep(draw)">+ Add sparepart</button><button class="btn" type="button" onclick="addBeli('v')">+ Sparepart Beli</button><button class="btn p" type="button" onclick="openScan('v')">📷 Scan barcode</button>
+ <button class="btn x" onclick="rmOPf('${l.id}')" aria-label="Remove">✕</button></div>${recAt(OF.pl,i,recHTMLO)}`})}
+ <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" onclick="OF.pl.push({id:uid(),pid:'',qty:1});keep(draw)">+ Add sparepart</button><button class="btn" type="button" onclick="addBeli('v')">+ Tambah sparepart (beli)</button><button class="btn p" type="button" onclick="openScan('v')">📷 Scan barcode</button>
  ${L.pkgs.length?`<div style="flex:1 1 200px;max-width:340px">${cbIn("k2","new","","📦 Add package (search)…",1)}</div>`:""}</div></div>
  <div class="card"><h2>Note for next visit</h2><p class="mu" style="margin:0 0 8px">Sparepart or work this motorcycle still needs (out of stock, or customer can't pay now). It will pop up the next time this plate number is entered.</p>
  <div class="g"><div class="s2"><label>What needs to be changed</label><input value="${esc(OF.NT.t)}" oninput="OF.NT.t=this.value" placeholder="e.g. Kampas rem depan, Rantai"></div>
@@ -824,13 +826,28 @@ new MutationObserver(fill).observe(document.body,{childList:true,subtree:true});
 </script>
 <style>
 /* tombol "+ Tambah ..." dibuat menonjol supaya mudah terlihat di HP / tablet */
-.btn.addb{background:color-mix(in srgb,var(--ac) 12%,var(--card));border:2px solid var(--ac);color:var(--ac);font-weight:700;min-height:48px;font-size:15px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
-.btn.addb:active{background:var(--ac);color:#fff}
+.btn.addb{--c:#475569;background:var(--c)!important;border:2px solid var(--c)!important;color:#fff!important;font-weight:700;border-radius:10px;min-height:48px;font-size:15px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.btn.addb.ab-wk{--c:#d97706}.btn.addb.ab-sp{--c:#7c3aed}.btn.addb.ab-pt{--c:#2563eb}.btn.addb.ab-bx{--c:#0d9488}
+.btn.addb:active{filter:brightness(.85);transform:scale(.97)}
+/* pembeda hasil tombol: sparepart biasa = biru, sparepart beli = hijau tosca, dari paket = hijau */
+.row.pl-n,.row.pl-b,.row.pl-k{border-style:solid!important;border-width:2px!important;border-radius:10px!important;padding:10px!important;margin-bottom:10px!important}
+.row.pl-n{border-color:#2563eb!important;background:color-mix(in srgb,#2563eb 7%,var(--card))}
+.row.pl-b{border-color:#0d9488!important;background:color-mix(in srgb,#0d9488 7%,var(--card))}
+.row.pl-k{border-color:#16a34a!important;background:color-mix(in srgb,#16a34a 7%,var(--card))}
+/* paket: semua baris sparepart dalam 1 border hijau */
+.pkgrp{border:2px solid #16a34a;border-radius:10px;background:color-mix(in srgb,#16a34a 7%,var(--card));padding:2px 10px;margin-bottom:10px}
+.pkgrp>.row{border:0!important;border-bottom:1px dashed color-mix(in srgb,#16a34a 55%,transparent)!important;border-radius:0!important;background:transparent!important;padding:10px 0!important;margin:0!important}
+.pkgrp>.row:last-child{border-bottom:0!important}
+.pkgrp>.rec{margin:6px 0 10px}
+/* pembeda pekerjaan: jasa biasa = oranye, Jasa Spesial = ungu */
+.row.wk-n,.row.wk-s{border-style:solid!important;border-width:2px!important;border-radius:10px!important;padding:10px!important;margin-bottom:10px!important}
+.row.wk-n{border-color:#d97706!important;background:color-mix(in srgb,#d97706 7%,var(--card))}
+.row.wk-s{border-color:#7c3aed!important;background:color-mix(in srgb,#7c3aed 7%,var(--card))}
 @media (max-width:900px){.btn.addb{min-height:52px;font-size:16px}}
 </style>
 <script>
 (function(){var t=0;
-function tag(){t=0;document.querySelectorAll("button.btn:not(.p):not(.x):not(.addb)").forEach(function(b){if(/^\s*\+/.test(b.textContent)&&!b.closest(".hd"))b.classList.add("addb")})}
+function tag(){t=0;document.querySelectorAll("button.btn:not(.x):not(.addb)").forEach(function(b){var x=b.textContent;if(/^\s*\+/.test(x)&&!b.closest(".hd")){var k=/jasa spesial/i.test(x)?"sp":/\(beli\)/i.test(x)?"bx":/pekerjaan|add work/i.test(x)?"wk":/sparepart/i.test(x)?"pt":"";b.classList.add("addb");if(k)b.classList.add("ab-"+k)}})}
 function q(){if(!t)t=setTimeout(tag,60)}
 new MutationObserver(q).observe(document.body,{childList:true,subtree:true,characterData:true});tag()})();
 </script>
