@@ -360,7 +360,7 @@ async function flush(){
 /* ---- totals (customer-facing only) ---- */
 function totals(){
  const S=F.lines.reduce((a,l)=>a+(l.sp?0:num(l.price)),0),SS=F.lines.reduce((a,l)=>a+(l.sp?num(l.price):0),0);let pp=0;
- F.pl.forEach(l=>{const p=part(l.pid);if(p)pp+=p.price*l.qty});
+ F.pl.forEach(l=>{if(l.bx){pp+=num(l.bp)*Math.max(1,num(l.qty));return}const p=part(l.pid);if(p)pp+=p.price*l.qty});
  const gross=S+SS+pp,dv=Math.max(0,num(F.disc)),disc=Math.min(gross,F.discT==="pct"?gross*Math.min(dv,100)/100:dv);
  return{S,SS,pp,gross,disc,total:gross-disc};
 }
@@ -426,6 +426,27 @@ function setRec(id,k){
 function dropRec(l){F.lines=F.lines.filter(x=>x.pj!==l.id);l.rj="";if(!F.lines.length)F.lines.push(emptyLine())}
 function pl_(id,k,v){const l=F.pl.find(x=>x.id===id);l[k]=v;if(k==="qty"){const p=part(l.pid),e=$("pp_"+id);if(p&&e)e.textContent=rp(p.price*l.qty);calc()}}
 function rmPl(id){const l=F.pl.find(x=>x.id===id);if(l&&l.rj)dropRec(l);F.pl=F.pl.filter(x=>x.id!==id);keep(draw)}
+/* ---- Sparepart Beli: dibeli dari toko tidak resmi, harga & laba diisi/diubah langsung oleh front desk ---- */
+const bxLive=l=>!!(l&&l.bx&&(T(l.bn).trim()||num(l.bp)>0||num(l.bl)>0));
+const bxOut=l=>({id:l.id,pid:"",bx:1,qty:Math.max(1,num(l.qty)||1),bn:T(l.bn).trim(),bp:Math.round(num(l.bp)),bl:Math.round(num(l.bl))});
+function bxCheck(a){for(const l of a){if(!bxLive(l))continue;const n=T(l.bn).trim();
+ if(!n)return "Isi nama sparepart beli.";
+ if(!(num(l.bp)>0))return "Isi harga untuk sparepart beli: "+n+".";
+ if(!(num(l.bl)>0))return "Isi laba untuk sparepart beli: "+n+" (laba tidak boleh 0).";
+ if(num(l.bl)>num(l.bp))return "Laba "+n+" tidak boleh lebih besar dari harga."}return ""}
+const bxArr=w=>w==="v"?OF.pl:F.pl;
+function addBeli(w){bxArr(w).push({id:uid(),pid:"",qty:1,bx:1,bn:"",bp:"",bl:""});keep(draw)}
+function rmBeli(w,id){const a=bxArr(w).filter(x=>x.id!==id);if(w==="v")OF.pl=a;else F.pl=a;keep(draw)}
+function bxSet(w,id,k,v){const l=bxArr(w).find(x=>x.id===id);if(!l)return;l[k]=v;
+ const e=$("bt_"+id);if(e)e.textContent=rp(num(l.bp)*Math.max(1,num(l.qty)));
+ if(w==="v")calcO();else calc()}
+function bxRow(l,w){const q=`bxSet('${w}','${l.id}'`;
+ return `<div class="row" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;align-items:end;border-left:3px solid var(--ac);padding-left:8px;margin-bottom:8px"><div style="grid-column:1/-1"><label>🛒 Sparepart beli (toko tidak resmi)</label><input value="${esc(l.bn)}" autocomplete="off" placeholder="Nama sparepart" oninput="${q},'bn',this.value)"></div>
+ <div><label>Jml</label><input type="number" min="1" value="${l.qty}" oninput="${q},'qty',Math.max(1,num(this.value)))"></div>
+ <div><label>Harga satuan</label><input type="number" inputmode="numeric" value="${esc(l.bp)}" placeholder="0" oninput="${q},'bp',this.value)"></div>
+ <div><label>Laba satuan</label><input type="number" inputmode="numeric" value="${esc(l.bl)}" placeholder="0" oninput="${q},'bl',this.value)"></div>
+ <div class="ro">Total<br><b id="bt_${l.id}">${rp(num(l.bp)*Math.max(1,num(l.qty)))}</b></div>
+ <button class="btn x" onclick="rmBeli('${w}','${l.id}')" aria-label="Hapus">✕</button></div>`}
 function addPlEmpty(){F.pl.push({id:uid(),pid:"",qty:1});keep(draw)}
 function pkAdd(id,w){
  const PL=w==="v"?OF.pl:F.pl;
@@ -434,7 +455,7 @@ function pkAdd(id,w){
  if(!items.length){alert("This package has no items yet.");return}
  const miss=[],res=[];items.forEach(i=>{const p=findSku(i.sku);if(p)res.push({p,qty:i.qty});else miss.push(i.sku)});
  const got=[];
- res.forEach(({p,qty})=>{let ex=PL.find(l=>l.pid===p.id);if(ex)ex.qty=Math.max(1,num(ex.qty))+qty;else{const e=PL.find(l=>!l.pid);if(e){e.pid=p.id;e.qty=qty;ex=e}else{ex={id:uid(),pid:p.id,qty};PL.push(ex)}}got.push(ex)});
+ res.forEach(({p,qty})=>{let ex=PL.find(l=>l.pid===p.id);if(ex)ex.qty=Math.max(1,num(ex.qty))+qty;else{const e=PL.find(l=>!l.pid&&!l.bx);if(e){e.pid=p.id;e.qty=qty;ex=e}else{ex={id:uid(),pid:p.id,qty};PL.push(ex)}}got.push(ex)});
  if(num(k.jd)>0||num(k.jt)>0){
   if(!got.some(l=>l.pk&&l.pk.n===(k.name||"Package"))){const ld=got.find(l=>!l.pk&&!l.rj);
    if(ld){ld.pk={n:k.name||"Package",jd:num(k.jd),jt:num(k.jt)};ld.rd=0;got.forEach(l=>{if(l!==ld&&!l.pk&&!l.rj)l.pf=ld.id})}}}
@@ -491,13 +512,13 @@ function scResume(){if(!SC)return;SC.busy=false;const x=$("scx");if(x)x.innerHTM
 function scAdd(p){
  let l=F.pl.find(x=>x.pid===p.id),again=false;
  if(l){l.qty=Math.max(1,num(l.qty))+1;again=true}
- else{const e=F.pl.find(x=>!x.pid);if(e){e.pid=p.id;l=e}else{l={id:uid(),pid:p.id,qty:1};F.pl.push(l)}}
+ else{const e=F.pl.find(x=>!x.pid&&!x.bx);if(e){e.pid=p.id;l=e}else{l={id:uid(),pid:p.id,qty:1};F.pl.push(l)}}
  draw();toast("✓ "+p.name+(again?" · qty "+l.qty:" added"));
  setTimeout(()=>{const e=$("pp_"+l.id);if(e)e.scrollIntoView({block:"center",behavior:"smooth"})},60)}
 function scAddOF(p){
  let l=OF.pl.find(x=>x.pid===p.id),again=false;
  if(l){l.qty=Math.max(1,num(l.qty))+1;again=true}
- else{const e=OF.pl.find(x=>!x.pid);if(e){e.pid=p.id;l=e}else{l={id:uid(),pid:p.id,qty:1};OF.pl.push(l)}}
+ else{const e=OF.pl.find(x=>!x.pid&&!x.bx);if(e){e.pid=p.id;l=e}else{l={id:uid(),pid:p.id,qty:1};OF.pl.push(l)}}
  draw();toast("✓ "+p.name+(again?" · qty "+l.qty:" added"));
  setTimeout(()=>{const e=$("opp_"+l.id);if(e)e.scrollIntoView({block:"center",behavior:"smooth"})},60)}
 let tsT=0;function toast(t){let e=$("toast");if(!e){e=document.createElement("div");e.id="toast";e.className="toast";document.body.appendChild(e)}e.textContent=t;e.hidden=false;clearTimeout(tsT);tsT=setTimeout(()=>{e.hidden=true},2800)}
@@ -535,7 +556,8 @@ function submit(){
  const plate=F.plate.trim().toUpperCase(),po=!!F.po;
  if(!plate&&!po){msg={t:"er",m:"Enter the plate number (or NON DS)."};return draw()}
  const lines=po?[]:F.lines.filter(l=>l.sid||l.name.trim()||num(l.price)>0).map(l=>({id:l.id,sid:l.sid,name:l.name.trim(),price:num(l.price),mech:l.mech||"",pj:l.pj||"",sp:l.sp?1:0}));
- const pl=F.pl.filter(l=>l.pid).map(l=>{const r={id:l.id,pid:l.pid,qty:Math.max(1,num(l.qty)||1)};if(l.rj)r.rj=l.rj;if(l.rd)r.rd=1;if(l.pk)r.pk=l.pk;if(l.pf)r.pf=l.pf;return r});
+ {const bad=bxCheck(F.pl);if(bad){msg={t:"er",m:bad};return draw()}}
+ const pl=F.pl.filter(l=>l.pid||bxLive(l)).map(l=>{if(l.bx)return bxOut(l);const r={id:l.id,pid:l.pid,qty:Math.max(1,num(l.qty)||1)};if(l.rj)r.rj=l.rj;if(l.rd)r.rd=1;if(l.pk)r.pk=l.pk;if(l.pf)r.pf=l.pf;return r});
  if(po&&!pl.length){msg={t:"er",m:"Add at least one sparepart"};return draw()}
  if(!lines.length&&!pl.length&&!F.notes.length){msg={t:"er",m:"Add at least one work, sparepart or note."};return draw()}
  const e={id:uid(),created:Date.now(),date:today(),queue:po?0:Math.floor(num(($("f-q")||{}).value||F.q))||nextQ(),plate,eng:F.eng.trim().toUpperCase(),motor:F.motor.trim(),cust:F.cust.trim(),phone:F.phone.trim(),addr:F.addr.trim(),note:F.note.trim(),
@@ -591,11 +613,11 @@ function vNew(){
  <button class="btn x" onclick="rmLine('${l.id}')" aria-label="Remove">✕</button></div>`).join("")}
  <button class="btn" onclick="addLine()">+ Add work</button> <button class="btn p" onclick="addLine(1)">+ Jasa Spesial</button></div>`}
  <div class="card"><h2>Spareparts</h2>
- ${F.pl.map((l,i)=>{const p=part(l.pid);return `<div class="row rp"><div><label>Part (search)${p?` <span style="color:${p.stock<=0?"var(--ac)":"var(--mu)"}">· Stock: ${p.stock}${p.stock<=0?" (empty, still allowed)":""}</span>`:""}</label>${cbIn("p",l.id,pLbl(l),"Search SKU or name…")}</div>
+ ${F.pl.map((l,i)=>{if(l.bx)return bxRow(l,"f");const p=part(l.pid);return `<div class="row rp"><div><label>Part (search)${p?` <span style="color:${p.stock<=0?"var(--ac)":"var(--mu)"}">· Stock: ${p.stock}${p.stock<=0?" (empty, still allowed)":""}</span>`:""}</label>${cbIn("p",l.id,pLbl(l),"Search SKU or name…")}</div>
  <div><label>Qty</label><input type="number" min="1" value="${l.qty}" oninput="pl_('${l.id}','qty',Math.max(1,num(this.value)))"></div>
  <div class="ro">Price<br><b id="pp_${l.id}">${p?rp(p.price*l.qty):"-"}</b></div>
  <button class="btn x" onclick="rmPl('${l.id}')" aria-label="Remove">✕</button></div>${recAt(F.pl,i,recHTML)}`}).join("")}
- <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" onclick="addPlEmpty()">+ Add sparepart</button><button class="btn p" type="button" onclick="openScan('o')">📷 Scan barcode</button>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" onclick="addPlEmpty()">+ Add sparepart</button><button class="btn" type="button" onclick="addBeli('f')">+ Sparepart Beli</button><button class="btn p" type="button" onclick="openScan('o')">📷 Scan barcode</button>
  ${L.pkgs.length?`<div style="flex:1 1 200px;max-width:340px">${cbIn("k","new","","📦 Add package (search)…",1)}</div>`:""}</div></div>
  <div class="card"><h2>Discount</h2><div class="g"><div><label>Type</label><select onchange="F.discT=this.value;calc()"><option value="rp" ${F.discT!=="pct"?"selected":""}>Amount (Rp)</option><option value="pct" ${F.discT==="pct"?"selected":""}>Percent (%)</option></select></div>
  <div><label>Discount</label><input type="number" inputmode="decimal" min="0" value="${F.disc||""}" placeholder="0" oninput="F.disc=Math.max(0,num(this.value));calc()"></div>
@@ -651,7 +673,7 @@ function vQueue(){
  <button class="btn" onclick="refresh()">⟳ Refresh</button>`;
 }
 /* ---- Overhaul ---- */
-function calcO(){const e=$("osum");if(!e)return;let pp=0;OF.pl.forEach(l=>{const p=part(l.pid);if(p)pp+=p.price*l.qty});const o=num(OF.price),s=ovJS(),z=ovSS();
+function calcO(){const e=$("osum");if(!e)return;let pp=0;OF.pl.forEach(l=>{if(l.bx){pp+=num(l.bp)*Math.max(1,num(l.qty));return}const p=part(l.pid);if(p)pp+=p.price*l.qty});const o=num(OF.price),s=ovJS(),z=ovSS();
  e.innerHTML=`<div><span>Overhaul</span><b>${rp(o)}</b></div>${s+z+pp>0?`<div><span>Service + spareparts</span><b>${rp(s+z+pp)}</b></div>`:""}<div class="b"><span>TOTAL</span><span>${rp(o+s+z+pp)}</span></div>`}
 function ovAddSp(){OF.sl.push({id:uid(),sid:"",name:"",price:0,mech:(OF.sl.at(-1)||{}).mech||OF.mech||""});keep(draw);calcO()}
 function ovSl(id,k,v){const l=OF.sl.find(x=>x.id===id);if(!l)return;l[k]=v;calcO()}
@@ -704,11 +726,11 @@ function vOvh(){
  <button class="btn x" onclick="ovRmSp('${l.id}')" aria-label="Remove">✕</button></div>`).join("")}
  <button class="btn" type="button" onclick="ovAddJl()">+ Add work</button> <button class="btn p" type="button" onclick="ovAddSp()">+ Jasa Spesial</button></div>
  <div class="card"><h2>Spareparts (optional)</h2>
- ${OF.pl.map((l,i)=>{const p=part(l.pid);return `<div class="row rp"><div><label>Part (search)${p?` <span style="color:${p.stock<=0?"var(--ac)":"var(--mu)"}">· Stock: ${p.stock}${p.stock<=0?" (empty, still allowed)":""}</span>`:""}</label>${cbIn("o",l.id,pLbl(l),"Search SKU or name…")}</div>
+ ${OF.pl.map((l,i)=>{if(l.bx)return bxRow(l,"v");const p=part(l.pid);return `<div class="row rp"><div><label>Part (search)${p?` <span style="color:${p.stock<=0?"var(--ac)":"var(--mu)"}">· Stock: ${p.stock}${p.stock<=0?" (empty, still allowed)":""}</span>`:""}</label>${cbIn("o",l.id,pLbl(l),"Search SKU or name…")}</div>
  <div><label>Qty</label><input type="number" min="1" value="${l.qty}" oninput="opl('${l.id}','qty',Math.max(1,num(this.value)))"></div>
  <div class="ro">Price<br><b id="opp_${l.id}">${p?rp(p.price*l.qty):"-"}</b></div>
  <button class="btn x" onclick="rmOPf('${l.id}')" aria-label="Remove">✕</button></div>${recAt(OF.pl,i,recHTMLO)}`}).join("")}
- <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" onclick="OF.pl.push({id:uid(),pid:'',qty:1});keep(draw)">+ Add sparepart</button><button class="btn p" type="button" onclick="openScan('v')">📷 Scan barcode</button>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn" onclick="OF.pl.push({id:uid(),pid:'',qty:1});keep(draw)">+ Add sparepart</button><button class="btn" type="button" onclick="addBeli('v')">+ Sparepart Beli</button><button class="btn p" type="button" onclick="openScan('v')">📷 Scan barcode</button>
  ${L.pkgs.length?`<div style="flex:1 1 200px;max-width:340px">${cbIn("k2","new","","📦 Add package (search)…",1)}</div>`:""}</div></div>
  <div class="card"><h2>Note for next visit</h2><p class="mu" style="margin:0 0 8px">Sparepart or work this motorcycle still needs (out of stock, or customer can't pay now). It will pop up the next time this plate number is entered.</p>
  <div class="g"><div class="s2"><label>What needs to be changed</label><input value="${esc(OF.NT.t)}" oninput="OF.NT.t=this.value" placeholder="e.g. Kampas rem depan, Rantai"></div>
@@ -724,7 +746,8 @@ function submitOvh(){
  const sl=OF.sl.filter(l=>l.sid||l.name.trim()||num(l.price)>0).map(l=>({id:l.id,sid:l.sid,name:l.name.trim(),price:num(l.price),mech:l.mech||OF.mech||""}));
  if(a<=0&&sp<=0&&!sl.some(l=>l.price>0)&&!OF.notes.length){msg={t:"er",m:"Masukkan harga overhaul, harga jasa, Jasa Spesial, atau catatan."};return draw()}
  if(sl.some(l=>l.price>0&&!l.mech)){msg={t:"er",m:"Pilih mekanik untuk setiap Jasa Spesial."};return draw()}
- const pl=OF.pl.filter(l=>l.pid).map(l=>({id:l.id,pid:l.pid,qty:Math.max(1,num(l.qty)||1),rj:l.rj||"",rjf:num(l.rjf),rjn:l.rjn||"",rd:l.rd?1:0}));
+ {const bad=bxCheck(OF.pl);if(bad){msg={t:"er",m:bad};return draw()}}
+ const pl=OF.pl.filter(l=>l.pid||bxLive(l)).map(l=>l.bx?bxOut(l):{id:l.id,pid:l.pid,qty:Math.max(1,num(l.qty)||1),rj:l.rj||"",rjf:num(l.rjf),rjn:l.rjn||"",rd:l.rd?1:0});
  const e={id:uid(),created:Date.now(),kind:"ovh",date:today(),queue:Math.floor(num(($("g-q")||{}).value||OF.q))||nextQ(),plate,eng:OF.eng.trim().toUpperCase(),motor:OF.motor.trim(),cust:OF.cust.trim(),phone:OF.phone.trim(),addr:OF.addr.trim(),name:OF.name.trim(),price:a,mech:OF.mech||"",sid,sname,sprice:sp>0?sp:0,note:"",pl,sl,notes:OF.notes.map(n=>({id:n.id,text:n.text,why:n.why}))};
  P.push(e);sv(PK,P);OF=blankOF();AF2={};msg={t:"ok",m:"Overhaul sent to the main app: "+plate+(online?"":" (saved, will send when online)")};scrollTo(0,0);draw();
  flush().then(()=>{setTimeout(refresh,3500)});
@@ -798,5 +821,17 @@ addEventListener('beforeinstallprompt',function(e){e.preventDefault();p=e;fill()
 addEventListener('appinstalled',function(){p=null;document.querySelectorAll('.instSlot').forEach(function(s){s.innerHTML='';s.style.display='none'})});
 new MutationObserver(fill).observe(document.body,{childList:true,subtree:true});
 })();
+</script>
+<style>
+/* tombol "+ Tambah ..." dibuat menonjol supaya mudah terlihat di HP / tablet */
+.btn.addb{background:color-mix(in srgb,var(--ac) 12%,var(--card));border:2px solid var(--ac);color:var(--ac);font-weight:700;min-height:48px;font-size:15px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.btn.addb:active{background:var(--ac);color:#fff}
+@media (max-width:900px){.btn.addb{min-height:52px;font-size:16px}}
+</style>
+<script>
+(function(){var t=0;
+function tag(){t=0;document.querySelectorAll("button.btn:not(.p):not(.x):not(.addb)").forEach(function(b){if(/^\s*\+/.test(b.textContent)&&!b.closest(".hd"))b.classList.add("addb")})}
+function q(){if(!t)t=setTimeout(tag,60)}
+new MutationObserver(q).observe(document.body,{childList:true,subtree:true,characterData:true});tag()})();
 </script>
 </body></html>

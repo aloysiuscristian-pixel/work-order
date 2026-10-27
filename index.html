@@ -407,7 +407,7 @@ let O=blank(),tab="order";
 let PMa=null,PMn=-1,PMc=null;
 const part=id=>{if(PMa!==D.parts||PMn!==D.parts.length){PMa=D.parts;PMn=D.parts.length;PMc=new Map(D.parts.map(p=>[p.id,p]))}return PMc.get(id)};
 /* label for a part line: live part if it still exists, otherwise the copy saved with the order */
-const pLbl=l=>{const p=part(l.pid);if(p)return p.sku+" · "+p.name;const s=l.snap;return s&&s.name?(s.sku?s.sku+" · ":"")+s.name+" (deleted part)":""};
+const pLbl=l=>{const p=part(l.pid);if(p)return p.sku+" · "+p.name;const s=l.snap;return s&&s.name?(s.sku==="BELI"?"🛒 Beli · "+s.name:(s.sku?s.sku+" · ":"")+s.name+" (deleted part)"):""};
 const COL=new Intl.Collator(undefined,{numeric:true,sensitivity:'base'});
 const srt=(a,f)=>a.map(x=>[f(x),x]).sort((x,y)=>COL.compare(x[0],y[0])).map(x=>x[1]);
 const PH=new WeakMap(),ph=p=>{let h=PH.get(p);if(h===undefined){h=(p.sku+" "+p.name).toLowerCase();PH.set(p,h)}return h};
@@ -1480,6 +1480,7 @@ async function fdPurge(g){
   if(K.length!==E.length)await gh("/gists/"+SY.gid,{method:"PATCH",body:JSON.stringify({files:{[FDF]:{content:JSON.stringify({entries:K})}}})});
  }catch(e){}
 }
+const fdBx=l=>({id:nid(l.id),pid:"",qty:Math.max(1,num(l.qty)||1),snap:{sku:"BELI",price:Math.max(0,Math.round(num(l.bp))),profit:Math.max(0,Math.round(num(l.bl))),name:T(l.bn).trim()||"Sparepart beli"}});
 function fdApply(e){
  if(e.kind==="ovh"){
   const d=T(e.date).slice(0,10)||today(),plate=T(e.plate).toUpperCase(),a=num(e.price),sp=num(e.sprice);let eng=T(e.eng).toUpperCase();
@@ -1487,7 +1488,7 @@ function fdApply(e){
   const nts=A(e.notes).filter(n=>n&&T(n.text).trim());
   if(a<=0&&sp<=0&&!sl.length&&!nts.length)return 0;if(isNP(plate)&&!eng)eng=nextEng();
   const svc=D.services.find(x=>x.id===cid(e.sid)),
-   pl=A(e.pl).filter(l=>l&&part(cid(l.pid))).map(l=>{const p=part(cid(l.pid));return{id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1),rj:(l.rj==="d"||l.rj==="t")?l.rj:"",rjf:num(l.rjf),rjn:T(l.rjn),rd:l.rd?1:0,snap:{sku:p.sku,price:p.price,profit:p.profit,name:p.name}}});
+   pl=A(e.pl).filter(l=>l&&(l.bx||part(cid(l.pid)))).map(l=>{if(l.bx)return fdBx(l);const p=part(cid(l.pid));return{id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1),rj:(l.rj==="d"||l.rj==="t")?l.rj:"",rjf:num(l.rjf),rjn:T(l.rjn),rd:l.rd?1:0,snap:{sku:p.sku,price:p.price,profit:p.profit,name:p.name}}});
   const fq=Math.floor(num(e.queue));let add=0,q=fq>0?fq:nextQ(d,false);/* pakai nomor antrian yang diketik di front desk */
   nts.forEach(n=>{const id=nid(n.id);if(D.notes.some(x=>x.id===id)||fdGone(id))return;D.notes.push({id,plate,eng,motor:T(e.motor),text:T(n.text).trim(),why:T(n.why),date:d,done:false});add++});
   if(a>0||sp>0){D.ovh.unshift({id:cid(e.id),edited:today(),status:"Waiting",due:"",done:"",log:e.note?[{id:uid(),date:d,note:"Front desk: "+T(e.note)}]:[],date:d,queue:q,plate,eng,motor:T(e.motor),cust:T(e.cust),phone:T(e.phone),addr:T(e.addr),
@@ -1513,7 +1514,7 @@ function fdApply(e){
  const d=T(e.date).slice(0,10)||today(),plate=T(e.plate).toUpperCase();
  let eng=T(e.eng).toUpperCase();if(isNP(plate)&&!eng)eng=nextEng();
  const lines=A(e.lines).map(l=>{l=l||{};const s=D.services.find(x=>x.id===cid(l.sid));return{id:nid(l.id),sid:s?s.id:"",name:T(l.name)||(s?s.name:""),price:num(l.price),mech:MECH.includes(T(l.mech))?T(l.mech):"",pj:cid(l.pj),sp:l.sp?1:0}});
- const pl=A(e.pl).filter(l=>l&&part(cid(l.pid))).map(l=>{const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};
+ const pl=A(e.pl).filter(l=>l&&(l.bx||part(cid(l.pid)))).map(l=>{if(l.bx)return fdBx(l);const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};
   if(l.rj==="d"||l.rj==="t")r.rj=l.rj;if(l.rd)r.rd=1;if(l.pk&&typeof l.pk==="object")r.pk={n:T(l.pk.n),jd:num(l.pk.jd),jt:num(l.pk.jt)};if(l.pf)r.pf=T(l.pf);
   const p=part(r.pid);r.snap={sku:p.sku,price:p.price,profit:p.profit,name:p.name};return r});
  let add=0;
@@ -1676,5 +1677,17 @@ addEventListener('beforeinstallprompt',function(e){e.preventDefault();p=e;fill()
 addEventListener('appinstalled',function(){p=null;document.querySelectorAll('.instSlot').forEach(function(s){s.innerHTML='';s.style.display='none'})});
 new MutationObserver(fill).observe(document.body,{childList:true,subtree:true});
 })();
+</script>
+<style>
+/* tombol "+ Tambah ..." dibuat menonjol supaya mudah terlihat di HP / tablet */
+.btn.addb{background:color-mix(in srgb,var(--ac) 12%,var(--card));border:2px solid var(--ac);color:var(--ac);font-weight:700;min-height:48px;font-size:15px;padding:10px 16px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.btn.addb:active{background:var(--ac);color:#fff}
+@media (max-width:900px){.btn.addb{min-height:52px;font-size:16px}}
+</style>
+<script>
+(function(){var t=0;
+function tag(){t=0;document.querySelectorAll("button.btn:not(.p):not(.x):not(.addb)").forEach(function(b){if(/^\s*\+/.test(b.textContent)&&!b.closest(".hd"))b.classList.add("addb")})}
+function q(){if(!t)t=setTimeout(tag,60)}
+new MutationObserver(q).observe(document.body,{childList:true,subtree:true,characterData:true});tag()})();
 </script>
 </body></html>
