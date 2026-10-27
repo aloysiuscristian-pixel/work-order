@@ -404,7 +404,7 @@ const JN={d:"tanpa servis",t:"dengan servis"},jfee=(p,k)=>p?num(k==="d"?p.jd:p.j
 const recSrc=l=>{if(l.pk)return{name:l.pk.n,jd:l.pk.jd,jt:l.pk.jt,pkg:1};const p=part(l.pid);return p?{name:p.name,jd:p.jd,jt:p.jt}:null};
 const pkHas=(l,Ls)=>!!(l&&l.pf&&(Ls||F.pl).some(x=>x.id===l.pf&&x.pk));
 function recHTML(l){
- const p=recSrc(l);if(l.rd||!p||!(p.jd>0||p.jt>0)||pkHas(l))return"";
+ const p=recSrc(l);if(l.rd||!p||!(p.jd>0||p.jt>0)||pkHas(l)||l.rj)return"";
  const op=k=>{const f=jfee(p,k);if(!(f>0))return"";return `<button type="button" class="btn opt${l.rj===k?" on":""}" onclick="setRec('${l.id}','${k}')"><b>Add service fee ${JN[k]}</b> · ${rp(f)}</button>`};
  return `<div class="rec"><span class="rct">Service fee to replace ${p.pkg?"package ":""}<b>${esc(p.name)}</b>?</span><button type="button" class="btn rcx" onclick="closeRec('${l.id}')" aria-label="Close">✕</button><div class="opts">${op("d")}${op("t")}</div></div>`}
 /* package recommendation is shown after the LAST part of its package; per-part recommendations stay under their own row */
@@ -696,7 +696,7 @@ function ovSetRec(id,k){
  l.rj=k;l.rjf=fe;l.rjn=nm;keep(draw);calcO()}
 function ovClose(id){const l=OF.pl.find(x=>x.id===id);if(l)l.rd=1;keep(draw)}
 function recHTMLO(l){
- const p=recSrc(l);if(l.rd||!p||!(p.jd>0||p.jt>0)||pkHas(l,OF.pl))return"";
+ const p=recSrc(l);if(l.rd||!p||!(p.jd>0||p.jt>0)||pkHas(l,OF.pl)||l.rj)return"";
  const op=k=>{const fe=jfee(p,k);if(!(fe>0))return"";return `<button type="button" class="btn opt${l.rj===k?" on":""}" onclick="ovSetRec('${l.id}','${k}')"><b>Add service fee ${JN[k]}</b> · ${rp(fe)}</button>`};
  return `<div class="rec"><span class="rct">Service fee to replace ${p.pkg?"package ":""}<b>${esc(p.name)}</b>?</span><button type="button" class="btn rcx" onclick="ovClose('${l.id}')" aria-label="Close">✕</button><div class="opts">${op("d")}${op("t")}</div></div>`}
 function opl(id,k,v){const l=OF.pl.find(x=>x.id===id);l[k]=v;if(k==="qty"){const p=part(l.pid),e=$("opp_"+id);if(p&&e)e.textContent=rp(p.price*l.qty);calcO()}}

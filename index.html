@@ -1145,6 +1145,8 @@ function recHTML(l,p,w){
  p=src;
  const _h=w==="o"?O:w==="f"?OF:D.ovh.find(x=>x.id===w);if(_h&&_h.status==="Done")return"";
  if(l.rd||!p||!(num(p.jd)>0||num(p.jt)>0)||(w==="o"&&O.po)||pkHas(L,l))return"";
+ /* sudah dipilih (masuk ke List of Work) -> sembunyikan kartu; hapus barisnya di List of Work (atau sparepartnya di Overhaul) untuk memunculkannya lagi */
+ if(l.rj)return"";
  const op=k=>{const f=jfee(p,k);if(!(f>0))return"";const on=l.rj===k;
   return `<button type="button" class="btn opt${on?" on":""}" onclick="setRec('${l.id}','${k}','${w}')"><b>${on?"✓ ":""}Jasa ganti ${JN[k]}</b><small>${rp(f)}</small></button>`};
  const ln=l.rj&&w==="o"?O.lines.find(x=>x.pj===l.id):null,
