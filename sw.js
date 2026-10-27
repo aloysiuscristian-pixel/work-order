@@ -1,4 +1,4 @@
-const V='ahass-v2',SHELL=['./','index.html','frontdesk.html','manifest-index.json','manifest-frontdesk.json','icon-192.png','icon-512.png'];
+const V='ahass-v3',SHELL=['./','index.html','frontdesk.html','manifest-index.json','manifest-frontdesk.json','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 // Stale-while-revalidate: buka instan dari cache, perbarui di latar belakang.

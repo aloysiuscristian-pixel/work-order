@@ -416,7 +416,7 @@ const srtS=()=>srt(D.services,s=>s.name),srtP=()=>(SPc&&SPc.a===D.parts&&SPc.n==
 const byQ=(a,b)=>num(a.queue)-num(b.queue);
 
 function nav(){
- const t=[["order","Work Order"],["proc","Process ("+(D.orders.filter(o=>!isDone(o)).length+D.ovh.filter(e=>!isDone(e)).length)+")"],["daily","Daily Result"],["ovh","Overhaul"],["services","Services"],["parts","Spareparts"+(D.parts.some(p=>p.fd)?" ("+D.parts.filter(p=>p.fd).length+" new)":"")],["motors","Motor Types"],["mechs","Mechanics"],["perf","Mechanic Monthly"],["profit","Profit Monthly"],["exp","Expense"],["adv","Salary"],["tax","Tax & Reorder Monthly"],["hist","History ("+(D.orders.length+D.ovh.length)+")"],["sync","Sync"+(SY.token?" ✓":"")]];
+ const t=[["order","Work Order"],["proc","Process ("+(D.orders.filter(o=>!isDone(o)).length+D.ovh.filter(e=>!isDone(e)).length)+")"],["daily","Daily Result"],["ovh","Overhaul"],["services","Services"],["parts","Spareparts"+(D.parts.some(p=>p.fd)?" ("+D.parts.filter(p=>p.fd).length+" new)":"")],["motors","Motor Types"],["mechs","Mechanics"],["perf","Mechanic Monthly"],["profit","Profit Monthly"],["exp","Expense"],["adv","Salary"],["tax","Tax & Reorder Monthly"],["hist","History ("+(D.orders.length+D.ovh.length)+")"],["sync","Sync"+(SY.token?(SY.err?" ⚠":" ✓"):"")]];
  document.getElementById("nav").innerHTML=t.map(([k,l])=>`<button class="${tab===k?"on":""}" onclick="tab='${k}';draw()">${l}</button>`).join("");
 }
 /* minimize / expand every card that starts with a red title */
@@ -1334,7 +1334,7 @@ function loadX(){if(window.XLSX)return Promise.resolve();return xP=xP||loadScrip
 
 /* ---------- Cloud sync via private GitHub Gist ---------- */
 const SYK="wo_sync",GF="work-order-data.json",GD="Work Order App Data";
-let SY={token:"",gid:"",base:0,auto:true,last:0,msg:""},syBusy=false,syT=null;
+let SY={token:"",gid:"",base:0,auto:true,last:0,msg:"",err:false},syBusy=false,syT=null;
 try{const x=JSON.parse(localStorage.getItem(SYK)||"{}");for(const k of["token","gid","base","auto","last"])if(k in x)SY[k]=x[k]}catch(e){}
 const sySave=()=>{try{localStorage.setItem(SYK,JSON.stringify({token:SY.token,gid:SY.gid,base:SY.base,auto:SY.auto,last:SY.last}))}catch(e){}};
 function syMsg(t,bad){SY.msg=t;const e=document.getElementById("symsg");if(e){e.textContent=t;e.style.color=bad?"#b91c1c":"var(--mu)"}}
@@ -1351,16 +1351,53 @@ async function syGet(){
  return JSON.parse(t);
 }
 async function syPush(){
- const u=D.updated,body=JSON.stringify({files:{[GF]:{content:JSON.stringify(D)}}});
+ const u=D.updated,snap=mkBase(D),body=JSON.stringify({files:{[GF]:{content:JSON.stringify(D)}}});
  if(!SY.gid){const g=await gh("/gists",{method:"POST",body:JSON.stringify({description:GD,public:false,files:{[GF]:{content:JSON.stringify(D)}}})});SY.gid=g.id}
  else await gh("/gists/"+SY.gid,{method:"PATCH",body});
- SY.base=u;SY.last=Date.now();sySave();
+ SY.base=u;SY.last=Date.now();sySave();baseSave(snap);
 }
 function syPull(R){
  D=norm(R);MECH.splice(0,MECH.length,...D.mechs);sortM();
  try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
- SY.base=D.updated;SY.last=Date.now();sySave();draw();
+ SY.base=D.updated;SY.last=Date.now();sySave();baseSave(mkBase(D));draw();
 }
+
+/* ---------- 3-way merge (replaces the old "both changed" dead end) ---------- */
+const BK="wo_base",COLS=["services","parts","orders","ovh","notes","expenses","staff","expTypes","mexp","extras","advances","pkgs"];
+function h53(s){let a=0xdeadbeef,b=0x41c6ce57;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);a=Math.imul(a^c,2654435761);b=Math.imul(b^c,1597334677)}a=Math.imul(a^(a>>>16),2246822507)^Math.imul(b^(b>>>13),3266489909);b=Math.imul(b^(b>>>16),2246822507)^Math.imul(a^(a>>>13),3266489909);return (4294967296*(2097151&b)+(a>>>0)).toString(36)}
+const rh=(c,r)=>{if(c==="parts"){const x=Object.assign({},r);delete x.stock;return h53(JSON.stringify(x))}return h53(JSON.stringify(r))};
+function mkBase(d){const B={ids:{},stock:{},mechs:A(d.mechs).slice(),motors:A(d.motors).slice(),mfix:Object.assign({},d.mfix)};
+ COLS.forEach(c=>{const m={};A(d[c]).forEach(r=>{m[r.id]=rh(c,r)});B.ids[c]=m});A(d.parts).forEach(p=>{B.stock[p.id]=p.stock});return B}
+function baseSave(B){try{localStorage.setItem(BK,JSON.stringify(B))}catch(e){}}
+function baseLoad(){try{const b=JSON.parse(localStorage.getItem(BK)||"null");return b&&b.ids?b:null}catch(e){return null}}
+function mergeStr(l,r,b){const ls=new Set(l),rs=new Set(r),bs=b?new Set(b):null,out=[];
+ for(const x of l.concat(r)){if(out.includes(x))continue;const iL=ls.has(x),iR=rs.has(x);
+  if(iL&&iR)out.push(x);else if(!bs||!bs.has(x))out.push(x)}return out}
+function mergeD(L,R,B,lw){
+ const M=Object.assign({},L);
+ COLS.forEach(c=>{
+  const bm=B&&B.ids&&B.ids[c]||null,La=A(L[c]),Ra=A(R[c]),lm=new Map(La.map(r=>[r.id,r])),rm=new Map(Ra.map(r=>[r.id,r]));
+  const first=lw?La:Ra,second=lw?Ra:La,out=[],seen=new Set();
+  for(const x of first.concat(second)){
+   if(seen.has(x.id))continue;seen.add(x.id);
+   const l=lm.get(x.id),r=rm.get(x.id),b=bm?bm[x.id]:undefined;let pick=null;
+   if(l&&r){const lh=rh(c,l),rH=rh(c,r);
+    if(lh===rH)pick=lw?l:r;else if(b!==undefined){pick=lh===b?r:rH===b?l:(lw?l:r)}else pick=lw?l:r;
+    if(c==="parts"){const bs=B&&B.stock?B.stock[x.id]:undefined,p=Object.assign({},pick);
+     if(bs!==undefined)p.stock=Math.max(0,Math.floor(bs+(l.stock-bs)+(r.stock-bs)));else p.stock=(lw?l:r).stock;pick=p}}
+   else{const o=l||r,h=rh(c,o);
+    if(b!==undefined&&h===b)pick=null;/* the other device deleted it and this one never touched it */
+    else pick=o}
+   if(pick)out.push(pick)}
+  M[c]=out});
+ ["orders","ovh"].forEach(c=>{M[c]=M[c].map((o,i)=>[o,i]).sort((a,b)=>(T(b[0].date)>T(a[0].date)?1:T(b[0].date)<T(a[0].date)?-1:a[1]-b[1])).map(x=>x[0])});
+ M.mechs=mergeStr(A(L.mechs),A(R.mechs),B&&B.mechs);if(!M.mechs.length)M.mechs=A(L.mechs).concat(A(R.mechs));
+ M.motors=mergeStr(A(L.motors),A(R.motors),B&&B.motors);
+ M.fdDel=mergeStr(A(L.fdDel),A(R.fdDel),null).slice(-400);
+ const mf={},keys=new Set(Object.keys(L.mfix||{}).concat(Object.keys(R.mfix||{})));
+ keys.forEach(k=>{const l=(L.mfix||{})[k],r=(R.mfix||{})[k],b=B&&B.mfix?B.mfix[k]:undefined;let v;
+  if(l===r)v=l;else if(l===b)v=r;else if(r===b)v=l;else v=lw?l:r;if(v>0)mf[k]=v});M.mfix=mf;
+ return norm(M)}
 const syT_=()=>new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
 async function sySync(manual){
  if(!SY.token||syBusy)return;
@@ -1370,17 +1407,18 @@ async function sySync(manual){
   if(!SY.gid){await syPush();syMsg("Cloud backup created ("+syT_()+").");ok=true}
   else{
    const R=await syGet(),rU=num(R&&R.updated),lc=D.updated>SY.base,rc=rU>SY.base;
-   if(rU===D.updated){SY.base=D.updated;SY.last=Date.now();sySave();syMsg("Up to date ("+syT_()+").");ok=true}
+   if(rU===D.updated){SY.base=D.updated;SY.last=Date.now();sySave();baseSave(mkBase(D));syMsg("Up to date ("+syT_()+").");ok=true}
    else if(!lc&&!rc){syMsg("Up to date ("+syT_()+").");ok=true}
    else if(lc&&!rc){await syPush();syMsg("Uploaded changes ("+syT_()+").");ok=true}
    else if(rc&&!lc){syPull(R);syMsg("Downloaded newer data ("+syT_()+").");ok=true}
-   else if(!manual){syMsg("Conflict: this device and the cloud both changed. Open the Sync tab and press Sync now.",true)}
-   else if(confirm("Both this device and the cloud have changes.\n\nOK = keep THIS device's data (overwrites cloud)\nCancel = more options")){await syPush();syMsg("Uploaded this device's data ("+syT_()+").");ok=true}
-   else if(confirm("Use the CLOUD data instead? This replaces the data on this device.")){syPull(R);syMsg("Downloaded cloud data ("+syT_()+").");ok=true}
-   else syMsg("Sync cancelled. Nothing was changed.");
+   else{/* both sides changed: merge automatically (3-way, by record id) instead of stopping */
+    const M=mergeD(D,norm(R),baseLoad(),D.updated>=rU);
+    D=M;MECH.splice(0,MECH.length,...D.mechs);sortM();D.updated=Math.max(Date.now(),rU+1);SPc=null;
+    try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
+    await syPush();draw();syMsg("Merged both devices ("+syT_()+"): "+(D.orders.length+D.ovh.length)+" orders.");ok=true}
   }
  }catch(e){syMsg("Sync failed: "+(e&&e.message||e),true)}
- finally{syBusy=false;if(tab==="sync"&&manual)draw(),syMsg(SY.msg,SY.msg.startsWith("Sync failed")||SY.msg.startsWith("Conflict"));if(ok&&D.updated>SY.base)schedPush()}
+ finally{syBusy=false;SY.err=!ok;try{nav()}catch(e){}if(tab==="sync"&&manual)draw(),syMsg(SY.msg,SY.msg.startsWith("Sync failed")||SY.msg.startsWith("Conflict"));if(ok&&D.updated>SY.base)schedPush()}
 }
 function schedPush(){if(!SY.token||!SY.auto)return;clearTimeout(syT);syT=setTimeout(()=>syBusy?schedPush():sySync(false),3000)}
 
