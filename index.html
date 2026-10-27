@@ -429,7 +429,7 @@ function mini(root){(root||document).querySelectorAll(".card").forEach(c=>{const
 function mnTog(h){const c=h.parentElement,k=mnKey(h);const cl=!c.classList.contains("cl");c.classList.toggle("cl",cl);h.setAttribute("aria-expanded",String(!cl));MN[k]=cl?1:0}
 document.addEventListener("click",e=>{const h=e.target.closest&&e.target.closest(".card.mn>h2");if(h)mnTog(h)});
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches(".card.mn>h2")){e.preventDefault();mnTog(e.target)}});
-function draw(){if(tab!=="motors")NM=false;nav();const v=document.getElementById("v");v.innerHTML={order:vOrder,services:vServ,parts:vParts,perf:vPerf,ovh:vOvh,daily:vDaily,profit:vProfit,exp:vExp,adv:vAdv,tax:vTax,motors:vMotors,mechs:vMechs,proc:vProc,hist:vHist,sync:vSync}[tab]();if(tab==="order")calc();mini(v);}
+function draw(){if(tab!=="motors")NM=false;nav();const v=document.getElementById("v");v.innerHTML={order:vOrder,services:vServ,parts:vParts,perf:vPerf,ovh:vOvh,daily:vDaily,profit:vProfit,exp:vExp,adv:vAdv,tax:vTax,motors:vMotors,mechs:vMechs,proc:vProc,hist:vHist,sync:vSync}[tab]();if(tab==="order")calc();mini(v);if(tab==="sync")setTimeout(snapShow,0)}
 
 const pk=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
 /* Engine number: identifies motorcycles without a plate ("NON DS"). Auto numbers: JM82E0000001, JM82E0000002, ... */
@@ -1373,6 +1373,39 @@ function baseLoad(){try{const b=JSON.parse(localStorage.getItem(BK)||"null");ret
 function mergeStr(l,r,b){const ls=new Set(l),rs=new Set(r),bs=b?new Set(b):null,out=[];
  for(const x of l.concat(r)){if(out.includes(x))continue;const iL=ls.has(x),iR=rs.has(x);
   if(iL&&iR)out.push(x);else if(!bs||!bs.has(x))out.push(x)}return out}
+/* ---------- automatic backups (IndexedDB, last 12) + safety guard ---------- */
+const cntD=d=>A(d.orders).length+A(d.ovh).length;
+function guard(M,L,R){const n=cntD(M),mx=Math.max(cntD(L),cntD(R));if(mx-n>=5&&n<mx*0.8)throw new Error("Dibatalkan demi keamanan: hasil gabungan ("+n+" order) jauh lebih kecil dari data asal ("+mx+"). Tidak ada yang diubah.")}
+function idb(){return new Promise((res,rej)=>{const q=indexedDB.open("wo_snaps",1);q.onupgradeneeded=()=>q.result.createObjectStore("s",{keyPath:"t"});q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+let snapLast=0;
+async function snapPut(why,data,thr){try{
+ if(thr&&Date.now()-snapLast<600000)return;
+ const db=await idb(),t=Date.now()+Math.floor(Math.random()*5);snapLast=Date.now();
+ await new Promise((res,rej)=>{const tx=db.transaction("s","readwrite");tx.objectStore("s").put({t,why,n:cntD(data),data:JSON.parse(JSON.stringify(data))});tx.oncomplete=res;tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error)});
+ const ks=await new Promise(res=>{const o=[],q=db.transaction("s").objectStore("s").openKeyCursor(null,"prev");q.onsuccess=()=>{const c=q.result;if(c){o.push(c.key);c.continue()}else res(o)};q.onerror=()=>res(o)});
+ if(ks.length>12){const tx=db.transaction("s","readwrite");ks.slice(12).forEach(k=>tx.objectStore("s").delete(k))}
+}catch(e){}}
+async function snapList(){const db=await idb();return new Promise(res=>{const o=[],q=db.transaction("s").objectStore("s").openCursor(null,"prev");q.onsuccess=()=>{const c=q.result;if(c){o.push({t:c.value.t,why:c.value.why,n:c.value.n});c.continue()}else res(o)};q.onerror=()=>res(o)})}
+async function snapGet(t){const db=await idb();return new Promise((res,rej)=>{const q=db.transaction("s").objectStore("s").get(t);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})}
+async function snapShow(){const e=document.getElementById("snl");if(!e)return;
+ try{const L=await snapList();e.innerHTML=L.length?L.map(x=>`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid #8884;font-size:13px"><span style="flex:1;min-width:170px">${esc(new Date(x.t).toLocaleString())} · ${esc(x.why)} · ${x.n} order</span><button class="btn" onclick="snapRestore(${x.t},'add')">Pulihkan (gabung)</button><button class="btn" style="color:#b91c1c" onclick="snapRestore(${x.t},'full')">Ganti penuh</button></div>`).join(""):"Belum ada cadangan."}catch(err){e.textContent="Cadangan tidak tersedia di perangkat ini."}}
+async function snapRestore(t,mode){
+ if(syBusy)return;let s;try{s=await snapGet(t)}catch(e){}if(!s){alert("Cadangan tidak ditemukan.");return}
+ const P=norm(s.data);
+ if(!confirm(mode==="add"?"Gabungkan cadangan ("+s.n+" order) ke data sekarang? Data sekarang tetap ada; hanya yang hilang ditambahkan kembali.":"GANTI SEMUA data sekarang dengan cadangan ("+s.n+" order)? Perubahan setelah cadangan itu akan hilang (cadangan baru dibuat dulu)."))return;
+ syBusy=true;
+ try{await snapPut("sebelum pulihkan",D);
+  const M=mode==="add"?mergeD(D,P,null,true):P;
+  D=M;MECH.splice(0,MECH.length,...D.mechs);sortM();SPc=null;D.updated=Date.now();
+  try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
+  if(SY.token)await syPush();
+  draw();syMsg("Dipulihkan ("+syT_()+"): "+cntD(D)+" order.")
+ }catch(e){syMsg("Failed: "+(e&&e.message||e),true)}
+ finally{syBusy=false;if(tab==="sync"){const m=SY.msg;draw();syMsg(m,m.startsWith("Failed"))}}
+}
+function skuDedupe(N){const seen=new Map(),map={},out=[];
+ A(N.parts).forEach(p=>{const k=T(p.sku).trim().toUpperCase();if(k&&seen.has(k)){const f=seen.get(k);map[p.id]=f.id;f.stock=Math.max(f.stock,p.stock);return}if(k)seen.set(k,p);out.push(p)});
+ if(out.length!==N.parts.length){N.parts=out;["orders","ovh"].forEach(c=>A(N[c]).forEach(o=>A(o.pl).forEach(l=>{if(map[l.pid])l.pid=map[l.pid]})))}return N}
 function mergeD(L,R,B,lw){
  const M=Object.assign({},L);
  COLS.forEach(c=>{
@@ -1397,7 +1430,7 @@ function mergeD(L,R,B,lw){
  const mf={},keys=new Set(Object.keys(L.mfix||{}).concat(Object.keys(R.mfix||{})));
  keys.forEach(k=>{const l=(L.mfix||{})[k],r=(R.mfix||{})[k],b=B&&B.mfix?B.mfix[k]:undefined;let v;
   if(l===r)v=l;else if(l===b)v=r;else if(r===b)v=l;else v=lw?l:r;if(v>0)mf[k]=v});M.mfix=mf;
- return norm(M)}
+ return skuDedupe(norm(M))}
 const syT_=()=>new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
 async function sySync(manual){
  if(!SY.token||syBusy)return;
@@ -1410,9 +1443,10 @@ async function sySync(manual){
    if(rU===D.updated){SY.base=D.updated;SY.last=Date.now();sySave();baseSave(mkBase(D));syMsg("Up to date ("+syT_()+").");ok=true}
    else if(!lc&&!rc){syMsg("Up to date ("+syT_()+").");ok=true}
    else if(lc&&!rc){await syPush();syMsg("Uploaded changes ("+syT_()+").");ok=true}
-   else if(rc&&!lc){syPull(R);syMsg("Downloaded newer data ("+syT_()+").");ok=true}
+   else if(rc&&!lc){await snapPut("sebelum unduh dari cloud",D,1);syPull(R);syMsg("Downloaded newer data ("+syT_()+").");ok=true}
    else{/* both sides changed: merge automatically (3-way, by record id) instead of stopping */
-    const M=mergeD(D,norm(R),baseLoad(),D.updated>=rU);
+    const N=norm(R),M=mergeD(D,N,baseLoad(),D.updated>=rU);guard(M,D,N);
+    await snapPut("sebelum gabung (perangkat)",D);await snapPut("sebelum gabung (cloud)",N);
     D=M;MECH.splice(0,MECH.length,...D.mechs);sortM();D.updated=Math.max(Date.now(),rU+1);SPc=null;
     try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
     await syPush();draw();syMsg("Merged both devices ("+syT_()+"): "+(D.orders.length+D.ovh.length)+" orders.");ok=true}
@@ -1549,14 +1583,39 @@ async function fdPull(){
 function fdLoop(){const v=document.visibilityState==="visible",d=(v?1500:15000)*(1+Math.min(fdFail,5)*2);setTimeout(async()=>{try{await fdPull()}catch(e){}fdLoop()},d)}
 fdLoop();setTimeout(fdPull,800);
 addEventListener("focus",()=>fdPull());addEventListener("online",()=>fdPull());
+const CL={services:"Jasa",parts:"Sparepart",orders:"Order",ovh:"Turmes/Overhaul",notes:"Catatan motor",expenses:"Pengeluaran harian",staff:"Pekerja",expTypes:"Jenis pengeluaran",mexp:"Pengeluaran bulanan",extras:"Pendapatan tambahan",advances:"Kasbon",pkgs:"Paket"};
+/* force = per list, COMBINE both sides (spareparts matched by SKU, the rest by id). The source wins when the same record differs. */
+function forcePlan(src,dst){
+ const key=(c,r)=>c==="parts"?"k:"+(T(r.sku).trim().toUpperCase()||r.id):r.id;
+ const M=Object.assign({},src),rows=[],pmap={};let srcOnly=0,dstOnly=0;
+ COLS.forEach(c=>{const sa=A(src[c]),da=A(dst[c]),sk=new Map(sa.map(r=>[key(c,r),r])),dk=new Set(da.map(r=>key(c,r))),out=sa.slice();let add=0;
+  da.forEach(r=>{const k=key(c,r);if(sk.has(k)){if(c==="parts"&&sk.get(k).id!==r.id)pmap[r.id]=sk.get(k).id}else{out.push(r);add++}});
+  const miss=sa.filter(r=>!dk.has(key(c,r))).length;srcOnly+=miss;dstOnly+=add;M[c]=out;
+  if(add>0||sa.length!==da.length)rows.push(CL[c]+": sumber "+sa.length+" / tujuan "+da.length+" → hasil "+out.length+(add?" (+"+add+" dari tujuan)":""))});
+ if(Object.keys(pmap).length)["orders","ovh"].forEach(c=>M[c].forEach(o=>A(o.pl).forEach(l=>{if(pmap[l.pid])l.pid=pmap[l.pid]})));
+ return{M,rows,blocked:srcOnly===0&&dstOnly>0}}
 async function syForce(dir){
  if(!SY.token||syBusy)return;
- if(!confirm(dir==="up"?"Overwrite the cloud copy with this device's data?":"Overwrite this device's data with the cloud copy?"))return;
- syBusy=true;syMsg("Working…");
+ syBusy=true;syMsg("Memeriksa…");
  try{
   if(!SY.gid){SY.gid=await syFind();sySave()}
-  if(dir==="up"){await syPush();syMsg("Uploaded ("+syT_()+").")}
-  else{if(!SY.gid)throw new Error("No cloud copy exists yet");syPull(await syGet());syMsg("Downloaded ("+syT_()+").")}
+  const R0=SY.gid?await syGet():null;
+  if(dir==="down"&&!R0)throw new Error("No cloud copy exists yet");
+  const R=R0?norm(R0):null,src=dir==="up"?D:R,dst=dir==="up"?R:D;
+  const P=dst?forcePlan(src,dst):{rows:[],blocked:false};
+  if(P.blocked){syMsg("Ditolak: data sumber lebih kecil dan tidak menambah apa pun. Tidak ada yang diubah.",true);alert("Ditolak.\n\nData sumber sudah termasuk di tujuan dan lebih kecil (tidak menambah apa pun):\n"+P.rows.join("\n")+"\n\nTidak ada yang diubah. Gunakan Sync now.");return}
+  const t=(dir==="up"?"UNGGAH data perangkat ini ke cloud?":"UNDUH data cloud ke perangkat ini?")+"\n\n"+(P.rows.length?"Kedua sisi digabung (penghapusan juga diikuti):\n"+P.rows.join("\n"):"Jumlah data sama.")+"\n\nKetik TIMPA untuk melanjutkan. Cadangan otomatis dibuat dulu.";
+  if((prompt(t)||"").trim().toUpperCase()!=="TIMPA"){syMsg("Dibatalkan. Tidak ada yang diubah.");return}
+  /* same safe merge as Sync now (remembers deletions, per-record newest edit, stock deltas); only conflicts on the very same record follow the button */
+  const M=R?mergeD(D,R,baseLoad(),dir==="up"):D;
+  if(R)guard(M,D,R);
+  await snapPut("sebelum force "+(dir==="up"?"upload":"download")+" (perangkat)",D);
+  if(R0){await snapPut("sebelum force "+(dir==="up"?"upload":"download")+" (cloud)",R);
+   try{await gh("/gists/"+SY.gid,{method:"PATCH",body:JSON.stringify({files:{"backup-before-force.json":{content:JSON.stringify(R0)}}})})}catch(e){}}
+  D=M;D.updated=Date.now();MECH.splice(0,MECH.length,...D.mechs);sortM();SPc=null;
+  try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
+  await syPush();draw();
+  syMsg((dir==="up"?"Uploaded":"Downloaded")+" ("+syT_()+"): "+cntD(D)+" order. Cadangan tersimpan di daftar bawah.")
  }catch(e){syMsg("Failed: "+(e&&e.message||e),true)}
  finally{syBusy=false;if(tab==="sync"){const m=SY.msg;draw();syMsg(m,m.startsWith("Failed"))}}
 }
@@ -1566,6 +1625,8 @@ async function syOn(){
  try{const u=await gh("/user");SY.gid="";SY.base=0;sySave();syMsg("Connected as "+u.login+".");draw();sySync(true)}
  catch(e){SY.token="";syMsg("Could not connect: "+(e&&e.message||e),true)}
 }
+async function syDiag(){const c=document.getElementById("dgc"),t=document.getElementById("dgt");if(!SY.token){if(c)c.textContent="belum terhubung";return}
+ try{if(c)c.textContent="…";const R=await syGet();if(c)c.textContent=A(R.orders).length+A(R.ovh).length;if(t)t.textContent=R.updated?new Date(num(R.updated)).toLocaleString():"-"}catch(e){if(c)c.textContent="gagal: "+(e&&e.message||e)}}
 function syOff(){if(confirm("Disconnect this device from cloud sync? Your data stays on this device and in the cloud.")){clearTimeout(syT);SY.token="";SY.gid="";SY.base=0;SY.last=0;SY.msg="";sySave();draw()}}
 function dl(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
 function jBackup(){dl("work-orders-backup-"+today()+".json",new Blob([JSON.stringify(D,null,1)],{type:"application/json"}))}
@@ -1582,7 +1643,7 @@ function vSync(){
  <p style="${sm};margin:0 0 10px">Keeps your data the same on every phone and computer. It is stored in a <b>private Gist in your own GitHub account</b>, never in the public repository. The app keeps working offline and syncs when you are back online.</p>
  ${on?`<div class="sum"><div><span>Status</span><b class="store">Connected</b></div><div><span>Cloud copy</span><b>${SY.gid?"found":"will be created"}</b></div><div><span>Last sync</span><b>${SY.last?esc(new Date(SY.last).toLocaleString()):"-"}</b></div></div>
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--tx);margin:10px 0"><input type="checkbox" style="width:auto" ${SY.auto?"checked":""} onchange="SY.auto=this.checked;sySave()"> Sync automatically after changes</label>
- <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" onclick="sySync(true)">⟳ Sync now</button><button class="btn" onclick="syForce('up')">⬆ Force upload</button><button class="btn" onclick="syForce('down')">⬇ Force download</button><button class="btn" style="color:#b91c1c" onclick="syOff()">Disconnect</button></div>`
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" onclick="sySync(true)">⟳ Sync now</button><button class="btn" style="color:#b91c1c" onclick="syForce('up')">⬆ Force upload</button><button class="btn" style="color:#b91c1c" onclick="syForce('down')">⬇ Force download</button><button class="btn" style="color:#b91c1c" onclick="syOff()">Disconnect</button></div>`
  :`<label>GitHub token</label><input id="sytok" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_…">
  <div style="margin:10px 0"><button class="btn p" onclick="syOn()">Connect</button></div>
  <ol style="${sm};padding-left:18px;margin:0">
@@ -1591,6 +1652,8 @@ function vSync(){
  <li>Paste it above and press Connect. Repeat on your other devices with the same token.</li></ol>
  <p style="${sm}">The token is kept only in this browser. Do not share it.</p>`}
  <p id="symsg" style="${sm};margin:10px 0 0">${esc(SY.msg||"")}</p></div>
+ <div class="card"><h2>Cadangan otomatis</h2><p style="${sm};margin:0 0 6px">Dibuat otomatis sebelum gabung, unduh, force, dan pulihkan (12 terakhir, di perangkat ini). <b>Pulihkan (gabung)</b> menambahkan kembali yang hilang tanpa menghapus pekerjaan baru.</p><div id="snl">…</div></div>
+ <div class="card"><h2>Diagnostic</h2><p style="${sm};margin:0 0 8px">Versi: merge-v3 · Gist: <b>${SY.gid?esc(SY.gid.slice(0,8))+"…":"-"}</b> · Order di perangkat: <b>${D.orders.length+D.ovh.length}</b> · Order di cloud: <b id="dgc">-</b> · Cloud diubah: <b id="dgt">-</b></p><button class="btn" onclick="syDiag()">Cek cloud</button></div>
  <div class="card"><h2>Backup file</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="jBackup()">⬇ Download backup (.json)</button><label class="btn" style="margin:0;font-size:15px;color:var(--tx)">⬆ Restore backup<input type="file" accept=".json,application/json" style="display:none" onchange="jRestore(this)"></label></div>
  <p style="${sm};margin:8px 0 0">Use this to move data from an older copy of the app. Excel export and import are on the History tab.</p></div>`;
 }
