@@ -405,8 +405,8 @@ const recSrc=l=>{if(l.pk)return{name:l.pk.n,jd:l.pk.jd,jt:l.pk.jt,pkg:1};const p
 const pkHas=(l,Ls)=>!!(l&&l.pf&&(Ls||F.pl).some(x=>x.id===l.pf&&x.pk));
 function recHTML(l){
  const p=recSrc(l);if(l.rd||!p||!(p.jd>0||p.jt>0)||pkHas(l)||l.rj)return"";
- const op=k=>{const f=jfee(p,k);if(!(f>0))return"";return `<button type="button" class="btn opt${l.rj===k?" on":""}" onclick="setRec('${l.id}','${k}')"><b>Add service fee ${JN[k]}</b> · ${rp(f)}</button>`};
- return `<div class="rec"><span class="rct">Service fee to replace ${p.pkg?"package ":""}<b>${esc(p.name)}</b>?</span><button type="button" class="btn rcx" onclick="closeRec('${l.id}')" aria-label="Close">✕</button><div class="opts">${op("d")}${op("t")}</div></div>`}
+ const op=k=>{const f=jfee(p,k);if(!(f>0))return"";return `<button type="button" class="btn opt${l.rj===k?" on":""}" onclick="setRec('${l.id}','${k}')"><b>Add service fee${p.pkg?"":" "+JN[k]}</b> · ${rp(f)}</button>`};
+ return `<div class="rec"><span class="rct">Service fee to replace ${p.pkg?"package ":""}<b>${esc(p.name)}</b>?</span><button type="button" class="btn rcx" onclick="closeRec('${l.id}')" aria-label="Close">✕</button><div class="opts">${op("d")}${p.pkg?"":op("t")}</div></div>`}
 /* package recommendation is shown after the LAST part of its package; per-part recommendations stay under their own row */
 /* baris sparepart dari paket digabung dalam 1 border */
 const pgGrp=(L,f)=>{let h="",o=false;L.forEach((l,i)=>{const g=!l.bx&&!!l.pg;if(g&&!o){h+='<div class="pkgrp">';o=true}else if(!g&&o){h+='</div>';o=false}h+=f(l,i)});return h+(o?'</div>':'')};
@@ -420,7 +420,7 @@ function setRec(id,k){
  const l=F.pl.find(x=>x.id===id),p=l&&recSrc(l);if(!p)return;
  const i=F.lines.findIndex(x=>x.pj===id);
  if(l.rj===k){if(i>=0)F.lines.splice(i,1);l.rj="";if(!F.lines.length)F.lines.push(emptyLine());keep(draw);return}
- const f=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+" ("+JN[k]+")";
+ const f=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+(p.pkg?"":" ("+JN[k]+")");
  if(i>=0){F.lines[i].name=nm;F.lines[i].price=f}
  else{const mech=(F.lines.at(-1)||{}).mech||"",b=F.lines.findIndex(x=>!x.sid&&!x.name&&!num(x.price)&&!x.pj),nl={id:uid(),sid:"",name:nm,price:f,mech,pj:id};
   if(b>=0){nl.id=F.lines[b].id;nl.mech=F.lines[b].mech||mech;F.lines[b]=nl}else F.lines.push(nl)}
@@ -691,14 +691,14 @@ function ovUndo(l){
 function ovSetRec(id,k){
  const l=OF.pl.find(x=>x.id===id),p=l&&recSrc(l);if(!p)return;
  if(l.rj===k){ovUndo(l);keep(draw);calcO();return}
- ovUndo(l);const fe=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+" ("+JN[k]+")",b=OF.jl.findIndex(x=>!x.sid&&!x.name&&!num(x.price)&&!x.pj),nl={id:uid(),sid:"",name:nm,price:fe,mech:OF.mech||"",pj:id};
+ ovUndo(l);const fe=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+(p.pkg?"":" ("+JN[k]+")"),b=OF.jl.findIndex(x=>!x.sid&&!x.name&&!num(x.price)&&!x.pj),nl={id:uid(),sid:"",name:nm,price:fe,mech:OF.mech||"",pj:id};
  if(b>=0){nl.id=OF.jl[b].id;OF.jl[b]=nl}else OF.jl.push(nl);
  l.rj=k;l.rjf=fe;l.rjn=nm;keep(draw);calcO()}
 function ovClose(id){const l=OF.pl.find(x=>x.id===id);if(l)l.rd=1;keep(draw)}
 function recHTMLO(l){
  const p=recSrc(l);if(l.rd||!p||!(p.jd>0||p.jt>0)||pkHas(l,OF.pl)||l.rj)return"";
- const op=k=>{const fe=jfee(p,k);if(!(fe>0))return"";return `<button type="button" class="btn opt${l.rj===k?" on":""}" onclick="ovSetRec('${l.id}','${k}')"><b>Add service fee ${JN[k]}</b> · ${rp(fe)}</button>`};
- return `<div class="rec"><span class="rct">Service fee to replace ${p.pkg?"package ":""}<b>${esc(p.name)}</b>?</span><button type="button" class="btn rcx" onclick="ovClose('${l.id}')" aria-label="Close">✕</button><div class="opts">${op("d")}${op("t")}</div></div>`}
+ const op=k=>{const fe=jfee(p,k);if(!(fe>0))return"";return `<button type="button" class="btn opt${l.rj===k?" on":""}" onclick="ovSetRec('${l.id}','${k}')"><b>Add service fee${p.pkg?"":" "+JN[k]}</b> · ${rp(fe)}</button>`};
+ return `<div class="rec"><span class="rct">Service fee to replace ${p.pkg?"package ":""}<b>${esc(p.name)}</b>?</span><button type="button" class="btn rcx" onclick="ovClose('${l.id}')" aria-label="Close">✕</button><div class="opts">${op("d")}${p.pkg?"":op("t")}</div></div>`}
 function opl(id,k,v){const l=OF.pl.find(x=>x.id===id);l[k]=v;if(k==="qty"){const p=part(l.pid),e=$("opp_"+id);if(p&&e)e.textContent=rp(p.price*l.qty);calcO()}}
 function rmOPf(id){const l=OF.pl.find(x=>x.id===id);if(l&&l.rj)ovUndo(l);OF.pl=OF.pl.filter(x=>x.id!==id);keep(draw)}
 function vOvh(){

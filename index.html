@@ -817,7 +817,7 @@ function ovRmJl(id){const x=OF.jl.find(a=>a.id===id);if(x&&x.pj){const l=OF.pl.f
 function ovRmSl(id){OF.sl=OF.sl.filter(a=>a.id!==id);draw()}
 /* service-fee recommendation on the form = a line in List of Work (closing the box never removes it) */
 function ovUndoF(l){if(!l||!l.rj)return;OF.jl=OF.jl.filter(x=>x.pj!==l.id);if(!OF.jl.length)OF.jl.push(ovBlank());l.rj="";l.rjf=0;l.rjn=""}
-function ovApplyF(l,p,k){ovUndoF(l);const f=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+" ("+JN[k]+")",b=OF.jl.findIndex(x=>!x.sid&&!x.name&&!num(x.price)&&!x.pj),nl={id:uid(),sid:"",name:nm,price:f,pj:l.id};if(b>=0){nl.id=OF.jl[b].id;OF.jl[b]=nl}else OF.jl.push(nl);l.rj=k;l.rjf=f;l.rjn=nm}
+function ovApplyF(l,p,k){ovUndoF(l);const f=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+(p.pkg?"":" ("+JN[k]+")"),b=OF.jl.findIndex(x=>!x.sid&&!x.name&&!num(x.price)&&!x.pj),nl={id:uid(),sid:"",name:nm,price:f,pj:l.id};if(b>=0){nl.id=OF.jl[b].id;OF.jl[b]=nl}else OF.jl.push(nl);l.rj=k;l.rjf=f;l.rjn=nm}
 function addOvh(){
  if(bxBad(OF.pl)){alert("Isi nama dan harga untuk sparepart beli.");return}
  const a=num(OF.price),st=OF.status||"Waiting";if(OF.status==="Done"&&zpBlock(OF.pl))return;ensureEng(OF,"f");
@@ -1178,10 +1178,10 @@ function recHTML(l,p,w){
  /* sudah dipilih (masuk ke List of Work) -> sembunyikan kartu; hapus barisnya di List of Work (atau sparepartnya di Overhaul) untuk memunculkannya lagi */
  if(l.rj)return"";
  const op=k=>{const f=jfee(p,k);if(!(f>0))return"";const on=l.rj===k;
-  return `<button type="button" class="btn opt${on?" on":""}" onclick="setRec('${l.id}','${k}','${w}')"><b>${on?"✓ ":""}Jasa ganti ${JN[k]}</b><small>${rp(f)}</small></button>`};
+  return `<button type="button" class="btn opt${on?" on":""}" onclick="setRec('${l.id}','${k}','${w}')"><b>${on?"✓ ":""}${p.pkg?"Jasa ganti paket":"Jasa ganti "+JN[k]}</b><small>${rp(f)}</small></button>`};
  const ln=l.rj&&w==="o"?O.lines.find(x=>x.pj===l.id):null,
   note=!l.rj?"":w==="o"?`Sudah masuk ke List of Work${ln&&!ln.mech?" — pilih mekaniknya di sana":""}. Tekan lagi untuk membatalkan.`:`Sudah ditambahkan ke List of Work. Tekan lagi untuk membatalkan.`;
- return `<div class="rec" id="rec_${l.id}"><button type="button" class="btn x rcx" aria-label="Tutup rekomendasi" title="Tutup" onclick="closeRec('${l.id}','${w}')">✕</button><b class="rct">💡 Rekomendasi: tambahkan jasa penggantian ${p.pkg?"paket ":""}${esc(p.name)}</b><div class="opts">${op("d")}${op("t")}</div>${note?`<div style="color:var(--mu);margin-top:6px">${note}</div>`:""}</div>`}
+ return `<div class="rec" id="rec_${l.id}"><button type="button" class="btn x rcx" aria-label="Tutup rekomendasi" title="Tutup" onclick="closeRec('${l.id}','${w}')">✕</button><b class="rct">💡 Rekomendasi: tambahkan jasa penggantian ${p.pkg?"paket ":""}${esc(p.name)}</b><div class="opts">${op("d")}${p.pkg?"":op("t")}</div>${note?`<div style="color:var(--mu);margin-top:6px">${note}</div>`:""}</div>`}
 /* package recommendation is shown after the LAST part of its package; per-part recommendations stay under their own row */
 function recAt(L,i,w){
  const l=L[i];if(!l)return"";let h="";
@@ -1192,7 +1192,7 @@ function setRec(id,k,w){if(w&&w!=="o")return ovSetRec(id,k,w);
  const l=O.pl.find(x=>x.id===id),p=l&&recSrc(l,part(l.pid));if(!p)return;
  const i=O.lines.findIndex(x=>x.pj===id);
  if(l.rj===k){if(i>=0)O.lines.splice(i,1);l.rj="";if(!O.lines.length)O.lines.push(emptyLine());draw();return}
- const f=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+" ("+JN[k]+")";
+ const f=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+(p.pkg?"":" ("+JN[k]+")");
  if(i>=0){O.lines[i].name=nm;O.lines[i].price=f}
  else{
   const mech=(O.lines.at(-1)||{}).mech||"",b=O.lines.findIndex(x=>!x.sid&&!x.name&&!num(x.price)&&!x.pj),nl={id:uid(),sid:"",name:nm,price:f,mech,pj:id};
@@ -1212,7 +1212,7 @@ function ovUndo(h,l){
  h.sprice=np>0?(h===OF?String(np):np):(h===OF?"":0);h.sname=np>0?sn:"";l.rj="";l.rjf=0;l.rjn=""}
 function ovApply(h,l,p,k){
  if(h===OF)return ovApplyF(l,p,k);
- ovUndo(h,l);const f=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+" ("+JN[k]+")",sn=String(h.sname||""),np=num(h.sprice)+f;
+ ovUndo(h,l);const f=jfee(p,k),nm="Jasa ganti "+(p.pkg?"paket ":"")+p.name+(p.pkg?"":" ("+JN[k]+")"),sn=String(h.sname||""),np=num(h.sprice)+f;
  h.sprice=h===OF?String(np):np;h.sname=sn?sn+" + "+nm:nm;l.rj=k;l.rjf=f;l.rjn=nm}
 function ovSetRec(id,k,w){
  const h=ovHold(w),l=h&&(h.pl||[]).find(x=>x.id===id),p=l&&recSrc(l,part(l.pid));if(!p)return;
