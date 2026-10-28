@@ -297,7 +297,32 @@ mo.observe(document.documentElement,{childList:true,subtree:true,characterData:t
 function init(){busy=true;try{walk(document.documentElement);document.title=trs(document.title)}catch(e){}mo.takeRecords();busy=false}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
 })();
-</script></head><body class="locked"><noscript>This app needs JavaScript enabled.</noscript>
+</script><style>
+/* grouped navigation */
+#navw{margin:0 0 10px}
+#navw nav{display:flex;flex-wrap:nowrap;gap:4px;margin:0;padding:0;position:static;overflow-x:auto;scrollbar-width:none}
+#navw nav::-webkit-scrollbar{display:none}
+#nav button{flex:1 1 0;display:flex;align-items:center;justify-content:center;gap:5px;flex-wrap:wrap;min-height:40px;padding:6px 4px;font-size:14px;font-weight:700;border-radius:8px;line-height:1.15;box-shadow:none}
+#nav button.on{box-shadow:0 2px 0 #1a1a1a}
+#nav .bd{font-size:10.5px;font-weight:700;line-height:1;padding:2px 6px;border-radius:999px;background:rgba(128,128,128,.22);color:inherit}
+#nav button.on .bd{background:rgba(255,255,255,.28)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #nav button.on{box-shadow:0 2px 0 #fff}}
+#subnav{margin-top:6px;padding:3px;background:rgba(128,128,128,.13);border-radius:10px;gap:2px}
+#subnav:empty{display:none}
+#subnav button{flex:1 1 auto;border:0;background:transparent;color:var(--mu);min-height:32px;padding:5px 10px;font-size:13px;font-weight:600;border-radius:8px;box-shadow:none}
+#subnav button.on{background:var(--card);color:var(--ac);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+@media (max-width:700px){
+ #navw{position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:40;background:var(--bg);margin:0 -10px 8px;padding:6px 10px}
+ #navw nav{position:static!important;top:auto!important;margin:0!important;padding:0!important;background:none!important;overflow-x:auto;flex-wrap:nowrap!important}
+ #navw #subnav{margin-top:6px!important;padding:3px!important;background:rgba(128,128,128,.13)!important}
+ #navw #nav{overflow:visible;gap:3px}
+ #nav button{flex:1 1 auto!important;min-width:0!important;min-height:42px!important;padding:5px 3px!important;font-size:12px!important;border-radius:10px!important;gap:3px!important}
+ #nav .bd{font-size:9.5px;padding:2px 5px}
+ #subnav button{flex:0 0 auto!important;min-height:36px!important;padding:6px 12px!important;font-size:13.5px!important;border-radius:8px!important}
+ #subnav button.on{box-shadow:0 1px 3px rgba(0,0,0,.25)!important}
+}
+</style>
+</head><body class="locked"><noscript>This app needs JavaScript enabled.</noscript>
 <div id="lock" role="dialog" aria-modal="true" aria-labelledby="lkT"><div class="lk"><div class="lki"><span class="bdg">AHASS</span></div><div class="lkb">CENDERAWASIH MOTOR 3</div><h2 id="lkT">Enter PIN</h2><p id="lkS"></p>
 <input id="lk1" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN" aria-label="PIN">
 <input id="lk2" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN" aria-label="PIN" hidden>
@@ -306,7 +331,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 <p class="lkh" id="lkH"></p></div></div>
 <header class="hd"><div class="in"><div class="br"><span class="bdg">AHASS</span><div><div class="nm">Cenderawasih Motor 3</div><div class="sb">Astra Honda Authorized Service Station</div></div></div><div style="display:flex;gap:6px"><button class="btn" type="button" onclick="lockApp()">🔒 Lock</button></div></div></header>
 <main>
-<nav id="nav"></nav>
+<div id="navw"><nav id="nav"></nav><nav id="subnav"></nav></div>
 <div id="v"></div>
 <div class="ft"><b>AHASS</b> Cenderawasih Motor 3 · Astra Honda Authorized Service Station</div>
 </main>
@@ -375,7 +400,7 @@ function norm(d){
   orders:A(d.orders).map(o=>{o=o||{};return{id:nid(o.id),queue:(typeof o.queue==="number"||o.queue==="")?o.queue:null,plate:T(o.plate),eng:T(o.eng),motor:T(o.motor),cust:T(o.cust),phone:T(o.phone),addr:T(o.addr),date:T(o.date).slice(0,10),
    lines:A(o.lines).map(l=>({id:nid(l&&l.id),sid:cid(l&&l.sid),name:T(l&&l.name),price:num(l&&l.price),mech:T(l&&l.mech)||MECH0[0],pj:cid(l&&l.pj),sp:l&&l.sp?1:0})),
    pl:A(o.pl).map(l=>{l=l||{};const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};if(l.rj)r.rj=T(l.rj);if(l.rd)r.rd=1;if(l.pk&&typeof l.pk==="object")r.pk={n:T(l.pk.n),jd:num(l.pk.jd),jt:num(l.pk.jt)};if(l.pf)r.pf=T(l.pf);if(l.pg)r.pg=1;if(l.sk){r.sk=1;r.ded=Math.max(0,num(l.ded))}if(l.snap&&typeof l.snap==="object")r.snap={sku:T(l.snap.sku),price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name)};return r}),
-   disc:Math.max(0,num(o.disc)),discT:o.discT==="pct"?"pct":"rp",discN:T(o.discN),po:!!o.po,status:o.status?T(o.status):"Done",due:T(o.due),done:T(o.done),edited:T(o.edited).slice(0,10),
+   disc:Math.max(0,num(o.disc)),discT:o.discT==="pct"?"pct":"rp",discN:T(o.discN),po:!!o.po,...(o.ns?{ns:1}:{}),status:o.status?T(o.status):"Done",due:T(o.due),done:T(o.done),edited:T(o.edited).slice(0,10),
    log:A(o.log).map(g=>({id:nid(g&&g.id),date:T(g&&g.date),note:T(g&&g.note)}))}}),
   motors:Array.isArray(d.motors)?d.motors.map(T):DEFM.slice(),
   mechs:mc.length?mc:MECH0.slice(),
@@ -387,7 +412,7 @@ function norm(d){
   extras:A(d.extras).map(e=>{e=e||{};return{id:nid(e.id),date:T(e.date).slice(0,10),mech:T(e.mech).toUpperCase(),amount:num(e.amount),note:T(e.note)}}),
   advances:A(d.advances).map(e=>{e=e||{};return{id:nid(e.id),date:T(e.date).slice(0,10),mech:T(e.mech).toUpperCase(),amount:num(e.amount),note:T(e.note),settled:!!e.settled}}),
   mfix:(()=>{const r={};if(d.mfix&&typeof d.mfix==="object")for(const k in d.mfix){const n=T(k).trim().toUpperCase(),v=num(d.mfix[k]);if(n&&v>0)r[n]=v}return r})(),
-  ovh:A(d.ovh).map(e=>{e=e||{};return{id:nid(e.id),date:T(e.date).slice(0,10),plate:T(e.plate),eng:T(e.eng),motor:T(e.motor),cust:T(e.cust),phone:T(e.phone),addr:T(e.addr),name:T(e.name),queue:(typeof e.queue==="number"||e.queue==="")?e.queue:null,status:e.status?T(e.status):"Done",due:T(e.due),done:T(e.done),edited:T(e.edited).slice(0,10),log:A(e.log).map(g=>({id:nid(g&&g.id),date:T(g&&g.date),note:T(g&&g.note)})),price:num(e.price),sname:T(e.sname),sprice:num(e.sprice),mech:T(e.mech).toUpperCase(),pl:A(e.pl).map(l=>{l=l||{};const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};if(l.rj){r.rj=T(l.rj);r.rjf=num(l.rjf);r.rjn=T(l.rjn)}if(l.rd)r.rd=1;if(l.pk&&typeof l.pk==="object")r.pk={n:T(l.pk.n),jd:num(l.pk.jd),jt:num(l.pk.jt)};if(l.pf)r.pf=T(l.pf);if(l.pg)r.pg=1;if(l.sk){r.sk=1;r.ded=Math.max(0,num(l.ded))}if(l.snap&&typeof l.snap==="object")r.snap={sku:T(l.snap.sku),price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name)};return r})}}),
+  ovh:A(d.ovh).map(e=>{e=e||{};return{id:nid(e.id),date:T(e.date).slice(0,10),plate:T(e.plate),eng:T(e.eng),motor:T(e.motor),cust:T(e.cust),phone:T(e.phone),addr:T(e.addr),name:T(e.name),queue:(typeof e.queue==="number"||e.queue==="")?e.queue:null,status:e.status?T(e.status):"Done",due:T(e.due),done:T(e.done),edited:T(e.edited).slice(0,10),log:A(e.log).map(g=>({id:nid(g&&g.id),date:T(g&&g.date),note:T(g&&g.note)})),price:num(e.price),sname:T(e.sname),sprice:num(e.sprice),mech:T(e.mech).toUpperCase(),...(e.ns?{ns:1}:{}),pl:A(e.pl).map(l=>{l=l||{};const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};if(l.rj){r.rj=T(l.rj);r.rjf=num(l.rjf);r.rjn=T(l.rjn)}if(l.rd)r.rd=1;if(l.pk&&typeof l.pk==="object")r.pk={n:T(l.pk.n),jd:num(l.pk.jd),jt:num(l.pk.jt)};if(l.pf)r.pf=T(l.pf);if(l.pg)r.pg=1;if(l.sk){r.sk=1;r.ded=Math.max(0,num(l.ded))}if(l.snap&&typeof l.snap==="object")r.snap={sku:T(l.snap.sku),price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name)};return r})}}),
   pkgs:d.pkgs===undefined?DEFPK():A(d.pkgs).map(k=>{k=k||{};const jp=num(k.jd)||num(k.jt);return{id:nid(k.id),name:T(k.name),jd:jp,jt:jp,items:A(k.items).map(i=>{i=i||{};return{id:nid(i.id),sku:T(i.sku),qty:Math.max(1,Math.floor(num(i.qty))||1)}})}}),
   fdDel:A(d.fdDel).map(cid).filter(Boolean).slice(-400),
   updated:num(d.updated)};
@@ -433,9 +458,21 @@ let SPc=null;
 const srtS=()=>srt(D.services,s=>s.name),srtP=()=>(SPc&&SPc.a===D.parts&&SPc.n===D.parts.length)?SPc.l:(SPc={a:D.parts,n:D.parts.length,l:srt(D.parts,p=>p.sku+' '+p.name)}).l;
 const byQ=(a,b)=>num(a.queue)-num(b.queue);
 
+/* ---------- grouped tabs: 6 main buttons, sub-tabs appear underneath ---------- */
+let GT={};/* last sub-tab opened in each group */
 function nav(){
- const t=[["order","Work Order"],["proc","Process ("+(D.orders.filter(o=>!isDone(o)).length+D.ovh.filter(e=>!isDone(e)).length)+")"],["daily","Daily Result"],["ovh","Overhaul"],["services","Services"],["parts","Spareparts"+(D.parts.some(p=>p.fd)?" ("+D.parts.filter(p=>p.fd).length+" new)":"")],["motors","Motor Types"],["mechs","Mechanics"],["perf","Mechanic Monthly"],["profit","Profit Monthly"],["exp","Expense"],["adv","Salary"],["tax","Tax & Reorder Monthly"],["hist","History ("+(D.orders.length+D.ovh.length)+")"],["sync","Sync"+(SY.token?(SY.err?" ⚠":" ✓"):"")]];
- document.getElementById("nav").innerHTML=t.map(([k,l])=>`<button class="${tab===k?"on":""}" onclick="tab='${k}';draw()">${l}</button>`).join("");
+ const nProc=D.orders.filter(o=>!isDone(o)).length+D.ovh.filter(e=>!isDone(e)).length,nNew=D.parts.filter(p=>p.fd).length,
+ G=[
+  {k:"kerja",l:"Kerja",bd:nProc?String(nProc):"",t:[["order","Work Order"],["ovh","Overhaul"],["proc","Process ("+nProc+")"]]},
+  {k:"laporan",l:"Laporan",t:[["daily","Daily Result"],["profit","Profit Monthly"],["perf","Mechanic Monthly"],["tax","Tax & Reorder Monthly"]]},
+  {k:"uang",l:"Keuangan",t:[["exp","Expense"],["adv","Salary"]]},
+  {k:"data",l:"Data",bd:nNew?"+"+nNew:"",t:[["services","Services"],["parts","Spareparts"+(nNew?" ("+nNew+" new)":"")],["motors","Motor Types"],["mechs","Mechanics"]]},
+  {k:"riwayat",l:"Riwayat",bd:String(D.orders.length+D.ovh.length),t:[["hist",""]]},
+  {k:"sync",l:"Sync"+(SY.token?(SY.err?" ⚠":" ✓"):""),t:[["sync",""]]}
+ ],cur=G.find(g=>g.t.some(x=>x[0]===tab))||G[0];
+ GT[cur.k]=tab;
+ document.getElementById("nav").innerHTML=G.map(g=>`<button class="${g===cur?"on":""}" onclick="tab=GT['${g.k}']||'${g.t[0][0]}';draw()">${g.l}${g.bd?`<span class="bd">${g.bd}</span>`:""}</button>`).join("");
+ document.getElementById("subnav").innerHTML=cur.t.length>1?cur.t.map(([k,l])=>`<button class="${tab===k?"on":""}" onclick="tab='${k}';draw()">${l}</button>`).join(""):"";
 }
 /* minimize / expand every card that starts with a red title */
 let MN={};/* every card starts minimized when the app opens; 0 = opened by the user during this visit */
@@ -505,7 +542,8 @@ function vOrder(){
  <div><label>Mechanic</label><select onchange="ln('${l.id}','mech',this.value)">${mop(l.mech)}</select></div>
  <button class="btn x" onclick="rmLine('${l.id}')">✕</button></div>`).join("")}
  <button class="btn" onclick="O.lines.push({id:uid(),sid:'',name:'',price:0,mech:O.lines.at(-1)?.mech||''});draw()">+ Add work</button> <button class="btn p" onclick="O.lines.push({id:uid(),sid:'',name:'',price:0,mech:O.lines.at(-1)?.mech||'',sp:1});draw()">+ Jasa Spesial</button></div>`}
- <div class="card"><h2>Spareparts</h2>
+ <div class="card"><h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Spareparts</span><label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:6px;margin:0 0 0 auto;font-size:12px;font-weight:600;color:var(--tx);cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" style="width:auto;margin:0" ${O.ns?"checked":""} onchange="setNS(this.checked)"> Tidak pakai stok (WO lama)</label></h2>
+ ${O.ns?`<p style="color:var(--mu);font-size:12px;margin:0 0 8px">WO lama / sudah selesai: stok sparepart tidak dikurangi saat disimpan.</p>`:""}
  ${pgGrp(O.pl,(l,i)=>{if(isBx(l))return bxRow(l,"o");const p0=part(l.pid),p=p0||l.snap;return `<div class="row rp ${l.pg?"pl-g":"pl-n"}"><div class="cb"><label class="lbs">Part (search)${stk(p0)}</label>${cbIn('p',l.id,pLbl(l))}</div>
  <div><label>Qty</label><input type="number" min="1" value="${l.qty}" oninput="pl('${l.id}','qty',Math.max(1,num(this.value)))"></div>
  <div class="ro">Price<br><b id="pp_${l.id}">${p?rp(p.price*l.qty):"-"}</b></div><div class="ro">Profit<br><b id="pf_${l.id}">${p?rp(p.profit*l.qty):"-"}</b></div><div class="ro rcy">Reorder<br><b id="pr_${l.id}">${p?rp((p.price-p.profit)*l.qty):"-"}</b></div>
@@ -553,6 +591,7 @@ function sumHTML(o){
  ${t.disc>0?`<div><span>− ${esc(o.discN||"Discount")} (paid by store)</span><b>− ${rp(t.disc)}</b></div>`:""}<div class="b store"><span>STORE PROFIT</span><span>${rp(t.store)}</span></div>
  <div class="b"><span>TAX (2% of service)</span><span>${rp(t.tax)}</span></div>`;
 }
+function setNS(v){O.ns=v?1:0;draw()}
 function calc(){const e=document.getElementById("sum");if(e)e.innerHTML=sumHTML(O)}
 function setAllMech(v){if(!v)return;O.lines.forEach(l=>l.mech=v);draw()}
 function delCur(){const i=D.orders.findIndex(x=>x.id===O.id);
@@ -569,7 +608,12 @@ function saveO(){
  if(c.po){c.lines=[];c.status="Done";c.due="";c.pl=c.pl.filter(l=>l.pid||l.snap);if(!c.done)c.done=c.date}
  if(isDone(c)&&!c.done)c.done=c.date;
  c.pl.forEach(l=>{const p=part(l.pid);if(p)l.snap={sku:p.sku,price:p.price,profit:p.profit,name:p.name}});
- const i=D.orders.findIndex(x=>x.id===c.id);stockSync(i>=0?D.orders[i].pl:[],c.pl);if(i>=0)D.orders[i]=c;else D.orders.unshift(c);
+ const i=D.orders.findIndex(x=>x.id===c.id),pv=i>=0?D.orders[i]:null;
+ if(c.ns){stockSync(pv?pv.pl:[],[]);c.pl.forEach(l=>{delete l.sk;delete l.ded})}   /* old work order: never touch stock (give back anything taken earlier) */
+ else if(pv&&pv.ns)stockSync([],c.pl);   /* checkbox was just unticked: start consuming stock now */
+ else stockSync(pv?pv.pl:[],c.pl);
+ if(!c.ns)delete c.ns;
+ if(i>=0)D.orders[i]=c;else D.orders.unshift(c);
  O=blank();save();tab="order";draw();window.scrollTo(0,0);
 }
 
@@ -828,7 +872,7 @@ function addOvh(){
  if(sl.some(l=>!l.mech)&&st!=="Waiting"){alert("Select a mechanic for every work line (only Waiting status can be saved without a mechanic)");return}
  const d=OF.date||today(),q=OF.queue==null||OF.queue===""?nextQ(d,false):OF.queue,plate=OF.plate.trim().toUpperCase(),done=st==="Done"?(OF.done||today()):"",
   log=OF.log.filter(g=>g.note.trim()).map(g=>({id:uid(),date:g.date,note:g.note}));
- if(a>0||sp>0)D.ovh.unshift({id:uid(),edited:today(),status:st,due:OF.due||"",done,log,date:d,queue:q,plate,eng:OF.eng||"",motor:OF.motor,cust:OF.cust.trim(),phone:OF.phone.trim(),addr:OF.addr.trim(),name:OF.name.trim()||(a>0?"Engine overhaul":(sname||"Service")),price:a,sname:sp>0?(sname||"Service"):"",sprice:sp>0?sp:0,mech:OF.mech,pl:ovDed(OF.pl.filter(l=>part(l.pid)||bxLive(l)).map(l=>{if(isBx(l))return{id:uid(),pid:"",qty:l.qty,snap:{sku:"BELI",price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name).trim()}};const q=part(l.pid);return{id:uid(),pid:l.pid,qty:l.qty,rj:l.rj||"",rjf:num(l.rjf),rjn:l.rjn||"",rd:l.rd?1:0,snap:{sku:q.sku,price:q.price,profit:q.profit,name:q.name}}}))});
+ if(a>0||sp>0)D.ovh.unshift({id:uid(),edited:today(),status:st,due:OF.due||"",done,log,date:d,queue:q,plate,eng:OF.eng||"",motor:OF.motor,cust:OF.cust.trim(),phone:OF.phone.trim(),addr:OF.addr.trim(),name:OF.name.trim()||(a>0?"Engine overhaul":(sname||"Service")),price:a,sname:sp>0?(sname||"Service"):"",sprice:sp>0?sp:0,mech:OF.mech,...(OF.ns?{ns:1}:{}),pl:ovDedN(OF.ns,OF.pl.filter(l=>part(l.pid)||bxLive(l)).map(l=>{if(isBx(l))return{id:uid(),pid:"",qty:l.qty,snap:{sku:"BELI",price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name).trim()}};const q=part(l.pid);return{id:uid(),pid:l.pid,qty:l.qty,rj:l.rj||"",rjf:num(l.rjf),rjn:l.rjn||"",rd:l.rd?1:0,snap:{sku:q.sku,price:q.price,profit:q.profit,name:q.name}}}))});
  /* Jasa Spesial typed in the overhaul form: its own Work Order (same plate and queue) so the 80% mechanic / 20% store split works as usual */
  if(sl.length)D.orders.unshift({id:uid(),queue:q,plate,eng:OF.eng||"",motor:OF.motor,cust:OF.cust.trim(),phone:OF.phone.trim(),addr:OF.addr.trim(),date:d,lines:sl,pl:[],disc:0,discT:"rp",discN:"",po:false,status:st,due:OF.due||"",done,edited:today(),log:[...log,{id:uid(),date:d,note:"Jasa Spesial dari form Overhaul"}]});
  OF={date:OF.date,plate:"",eng:"",motor:"",cust:"",phone:"",addr:"",name:"",price:"",mech:OF.mech,sid:"",sname:"",sprice:"",queue:null,status:"Waiting",due:"",done:"",log:[],pl:[],jl:[ovBlank()],sl:[]};save();draw()}
@@ -850,7 +894,7 @@ const tt=o=>o._ov?ovT(o):totals(o);
 function ovP(e){let pp=0,pf=0,pr=0;(e.pl||[]).forEach(l=>{const p=part(l.pid)||l.snap;if(!p)return;pp+=p.price*l.qty;pf+=p.profit*l.qty;pr+=(p.price-p.profit)*l.qty});return{pp,pf,pr}}
 function opl(id,k,v){const l=OF.pl.find(x=>x.id===id);l[k]=v;if(k==="qty"){const p=part(l.pid),q=(a,t)=>{const e=document.getElementById(a+id);if(e)e.textContent=t};if(p){q("opp_",rp(p.price*l.qty));q("opf_",rp(p.profit*l.qty));q("opr_",rp((p.price-p.profit)*l.qty))}ovCalc()}}
 function pickOP(id,pid){const l=OF.pl.find(x=>x.id===id);if(l){if(l.rj)ovUndo(OF,l);l.rd="";delete l.pk;delete l.pf;delete l.pg}opl(id,"pid",pid);draw()}
-function addOP(jid,pid){if(!pid)return;const e=D.ovh.find(x=>x.id===jid),p=part(pid);if(!e||!p)return;e.pl=e.pl||[];const ex=e.pl.find(l=>l.pid===pid);if(ex){ex.qty++;if(ex.sk)dedLine(ex,1)}else{const nl={id:uid(),pid,qty:1,sk:1,ded:0,snap:{sku:p.sku,price:p.price,profit:p.profit,name:p.name}};e.pl.push(nl);dedLine(nl,1)}save();draw()}
+function addOP(jid,pid){if(!pid)return;const e=D.ovh.find(x=>x.id===jid),p=part(pid);if(!e||!p)return;e.pl=e.pl||[];const ex=e.pl.find(l=>l.pid===pid);if(ex){ex.qty++;if(ex.sk)dedLine(ex,1)}else{const nl={id:uid(),pid,qty:1,sk:1,ded:0,snap:{sku:p.sku,price:p.price,profit:p.profit,name:p.name}};e.pl.push(nl);if(e.ns){delete nl.sk;delete nl.ded}else dedLine(nl,1)}save();draw()}
 function setOPq(jid,lid,v){const e=D.ovh.find(x=>x.id===jid),l=e&&(e.pl||[]).find(x=>x.id===lid);if(!l)return;const o=num(l.qty),n=Math.max(1,num(v)||1);l.qty=n;if(l.sk){const p=part(l.pid);if(p){if(n>o)dedLine(l,n-o);else if(n<o){const nd=Math.min(num(l.ded),n);p.stock=stkOf(p)+num(l.ded)-nd;l.ded=nd}}}save();draw()}
 function delOP(jid,lid){const e=D.ovh.find(x=>x.id===jid);if(!e)return;{const x=(e.pl||[]).find(l=>l.id===lid);stkBack(x);if(x&&x.rj)ovUndo(e,x)}e.pl=(e.pl||[]).filter(l=>l.id!==lid);save();draw()}
 function vOvh(){
@@ -892,7 +936,8 @@ function vOvh(){
  <button class="btn x" onclick="ovRmSl('${l.id}')">✕</button></div>`).join("")}
  <button class="btn" onclick="ovAddJl()">+ Add work</button> <button class="btn p" onclick="ovAddSl()">+ Jasa Spesial</button>
  <p style="color:var(--mu);font-size:12px;margin:8px 0 0">Jasa biasa: 98% toko, 2% pajak. ★ Jasa Spesial: 80% mekanik, 20% toko, disimpan sebagai Work Order terpisah (nopol dan antrian sama).</p></div>
- <div class="card"><h2>Spareparts (optional)</h2>
+ <div class="card"><h2 style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span>Spareparts (optional)</span><label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:6px;margin:0 0 0 auto;font-size:12px;font-weight:600;color:var(--tx);cursor:pointer;text-transform:none;letter-spacing:0"><input type="checkbox" style="width:auto;margin:0" ${OF.ns?"checked":""} onchange="OF.ns=this.checked?1:0;draw()"> Tidak pakai stok (WO lama)</label></h2>
+ ${OF.ns?`<p style="color:var(--mu);font-size:12px;margin:0 0 8px">WO lama / sudah selesai: stok sparepart tidak dikurangi.</p>`:""}
  ${pgGrp(OF.pl,(l,i)=>{if(isBx(l))return bxRow(l,"f");const p=part(l.pid);return `<div class="row rp ${l.pg?"pl-g":"pl-n"}"><div class="cb"><label class="lbs">Part (search)${stk(p)}</label>${cbIn('o',l.id,p?p.sku+" · "+p.name:"")}</div>
  <div><label>Qty</label><input type="number" min="1" value="${l.qty}" oninput="opl('${l.id}','qty',Math.max(1,num(this.value)))"></div>
  <div class="ro">Price<br><b id="opp_${l.id}">${p?rp(p.price*l.qty):"-"}</b></div><div class="ro">Profit<br><b id="opf_${l.id}">${p?rp(p.profit*l.qty):"-"}</b></div><div class="ro rcy">Reorder<br><b id="opr_${l.id}">${p?rp((p.price-p.profit)*l.qty):"-"}</b></div>
@@ -1155,6 +1200,7 @@ const stkOf=p=>Math.max(0,Math.floor(num(p&&p.stock)));
 /* take up to n units from stock; l.ded remembers what was really taken so edits/deletes can give it back */
 function dedLine(l,n){const p=part(l.pid);if(!p||!(n>0))return 0;const q=Math.min(stkOf(p),n);p.stock=stkOf(p)-q;l.ded=num(l.ded)+q;l.sk=1;return q}
 function stkBack(l){if(l&&l.sk&&num(l.ded)>0){const p=part(l.pid);if(p)p.stock=stkOf(p)+num(l.ded);l.ded=0}}
+function ovDedN(ns,a){return ns?a:ovDed(a)}
 function ovDed(a){a.forEach(l=>{l.sk=1;l.ded=0;dedLine(l,Math.max(1,num(l.qty)))});return a}
 function stockSync(prev,next){
  const pm=new Map((prev||[]).map(l=>[l.id,l]));
@@ -1256,7 +1302,7 @@ function pkAdd(w,id){
   pkMark(L,got,k,pkOn,w);
  }else{
   const e=D.ovh.find(x=>x.id===w);if(!e)return;e.pl=e.pl||[];const got=[];
-  res.forEach(({p,qty})=>{const ex=e.pl.find(l=>l.pid===p.id);if(ex){ex.qty=Math.max(1,num(ex.qty))+qty;if(ex.sk)dedLine(ex,qty);got.push(ex)}else{const nl={id:uid(),pid:p.id,qty,sk:1,ded:0,snap:{sku:p.sku,price:p.price,profit:p.profit,name:p.name}};e.pl.push(nl);dedLine(nl,qty);got.push(nl)}});
+  res.forEach(({p,qty})=>{const ex=e.pl.find(l=>l.pid===p.id);if(ex){ex.qty=Math.max(1,num(ex.qty))+qty;if(ex.sk)dedLine(ex,qty);got.push(ex)}else{const nl={id:uid(),pid:p.id,qty,sk:1,ded:0,snap:{sku:p.sku,price:p.price,profit:p.profit,name:p.name}};e.pl.push(nl);if(e.ns){delete nl.sk;delete nl.ded}else dedLine(nl,qty);got.push(nl)}});
   pkMark(e.pl,got,k,pkOn,w);
  }
  if(miss.length||w!=="o"&&w!=="v")save();
@@ -1547,7 +1593,7 @@ function fdApply(e){
   const fq=Math.floor(num(e.queue));let add=0,q=fq>0?fq:nextQ(d,false);/* pakai nomor antrian yang diketik di front desk */
   nts.forEach(n=>{const id=nid(n.id);if(D.notes.some(x=>x.id===id)||fdGone(id))return;D.notes.push({id,plate,eng,motor:T(e.motor),text:T(n.text).trim(),why:T(n.why),date:d,done:false});add++});
   if(a>0||sp>0){D.ovh.unshift({id:cid(e.id),edited:today(),status:"Waiting",due:"",done:"",log:e.note?[{id:uid(),date:d,note:"Front desk: "+T(e.note)}]:[],date:d,queue:q,plate,eng,motor:T(e.motor),cust:T(e.cust),phone:T(e.phone),addr:T(e.addr),
-   name:T(e.name).trim()||(a>0?"Engine overhaul":(T(e.sname)||"Service")),price:a,sname:sp>0?(T(e.sname)||(svc?svc.name:"Service")):"",sprice:sp>0?sp:0,mech:MECH.includes(T(e.mech))?T(e.mech):"",pl:ovDed(pl)});add++}
+   name:T(e.name).trim()||(a>0?"Engine overhaul":(T(e.sname)||"Service")),price:a,sname:sp>0?(T(e.sname)||(svc?svc.name:"Service")):"",sprice:sp>0?sp:0,mech:MECH.includes(T(e.mech))?T(e.mech):"",...(e.ns?{ns:1}:{}),pl:ovDedN(e.ns,pl)});add++}
   if(sl.length){/* Jasa Spesial typed in Turmes: kept as its own Work Order so the 80% mechanic / 20% store split works as usual */
    D.orders.unshift({id:add?cid(e.id)+"sp":cid(e.id),queue:q,plate,eng,motor:T(e.motor),cust:T(e.cust),phone:T(e.phone),addr:T(e.addr),date:d,lines:sl,pl:[],disc:0,discT:"rp",discN:"",po:false,status:"Waiting",due:"",done:"",edited:today(),log:[{id:uid(),date:d,note:"Front desk: Jasa Spesial dari Turmes"+(e.note?" · "+T(e.note):"")}]});add++}
   return add}
@@ -1579,9 +1625,9 @@ function fdApply(e){
   const po=!!e.po&&!lines.length,pdn=false;/* front-desk parts-only orders wait in Process for the owner to check */
   const fq=Math.floor(num(e.queue)),o={id:cid(e.id),queue:(!po&&fq>0)?fq:nextQ(d,po),plate,eng,motor:T(e.motor),cust:T(e.cust),phone:T(e.phone),addr:T(e.addr),date:d,
    lines:po?[]:(lines.length?lines:[{id:uid(),sid:"",name:"",price:0,mech:"",pj:""}]),pl,
-   disc:Math.max(0,num(e.disc)),discT:e.discT==="pct"?"pct":"rp",discN:T(e.discN),po,status:pdn?"Done":"Waiting",due:"",done:pdn?d:"",edited:today(),
+   disc:Math.max(0,num(e.disc)),discT:e.discT==="pct"?"pct":"rp",discN:T(e.discN),po,...(e.ns?{ns:1}:{}),status:pdn?"Done":"Waiting",due:"",done:pdn?d:"",edited:today(),
    log:e.note?[{id:uid(),date:d,note:"Front desk: "+T(e.note)}]:[]};
-  stockSync([],o.pl);D.orders.unshift(o);add++}
+  if(!o.ns)stockSync([],o.pl);D.orders.unshift(o);add++}
  return add}
 /* ---- notification when new front-desk data arrives ---- */
 const FDN={pkb:0,po:0,ov:0,np:0},FDT0=document.title;
