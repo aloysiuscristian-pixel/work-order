@@ -768,12 +768,25 @@ function listHTML(){
   return `<div class="rpt"><div><label>SKU</label><div class="v">${esc(p.sku)}</div></div><div><label>Name</label><input value="${esc(e.name)}" oninput="PE['${p.id}'].name=this.value"></div><div><label>QTY</label><div class="v">${stkN(p)}</div></div><div><label>Sell price</label><input type="number" inputmode="numeric" value="${esc(e.price)}" placeholder="0" oninput="PE['${p.id}'].price=this.value"></div><div><label>Jasa wo/s</label><input type="number" inputmode="numeric" value="${esc(e.jd)}" placeholder="0" oninput="PE['${p.id}'].jd=this.value"></div><div><label>Jasa w/s</label><input type="number" inputmode="numeric" value="${esc(e.jt)}" placeholder="0" oninput="PE['${p.id}'].jt=this.value"></div><div class="sv"><span class="lock">Price not set yet · can be entered once</span><button class="btn p" onclick="savePart('${p.id}')">Save</button></div></div>`}).join("")+(all.length>PLim?`<button class="btn" style="margin-top:10px" onclick="PLim+=50;plRefresh()">Show more (${all.length-PLim} left)</button>`:"");
 }
 function plRefresh(){const e=$("plist");if(e)e.innerHTML=listHTML()}
+/* Packages: view only for the front desk (no edit, no add, no delete) */
+let PKQ="";
+function pkListHTML(){
+ const ws=PKQ.toLowerCase().trim().split(/\s+/).filter(Boolean),
+ all=L.pkgs.filter(k=>{const h=(k.name+" "+k.items.map(i=>{const p=findSku(i.sku);return i.sku+" "+(p?p.name:"")}).join(" ")).toLowerCase();return ws.every(w=>h.includes(w))}).slice().sort((x,y)=>(x.name||"Package").localeCompare(y.name||"Package",undefined,{sensitivity:"base",numeric:true}));
+ if(!all.length)return '<div class="mu">No package found.</div>';
+ return all.map(k=>{
+  const its=k.items.filter(i=>i.sku.trim()),tot=its.reduce((a,i)=>{const p=findSku(i.sku);return a+(p?num(p.price):0)*i.qty},0);
+  const rows=its.length?its.map(i=>{const p=findSku(i.sku);return `<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px dashed var(--bd)"><div style="min-width:0;word-break:break-word"><b>${esc(i.sku)}</b>${p?" · "+esc(p.name):""} <span class="mu">× ${i.qty}</span></div><b style="white-space:nowrap">${p?rp(num(p.price)*i.qty):"-"}</b></div>`}).join(""):'<div class="mu">This package has no items yet.</div>';
+  return `<div style="padding:9px 0;border-bottom:1px dashed var(--bd)"><div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline"><b>${esc(k.name||"Package")}</b><b style="white-space:nowrap">${rp(tot)}</b></div><div class="mu" style="margin:2px 0 4px">Jasa wo/s ${rp(k.jd)} · Jasa w/s ${rp(k.jt)}</div>${rows}</div>`}).join("");
+}
+function pkRefresh(){const e=$("pklist");if(e)e.innerHTML=pkListHTML()}
 function vParts(){
  return `<div class="card"><h2>Add sparepart</h2><p class="mu" style="margin:0 0 8px">Enter it once. After saving, the sell price and service fees are locked. If there is a mistake, ask the owner to change it in the main app.</p>
  <div class="g"><div><label>SKU</label><input value="${esc(NPF.sku)}" autocapitalize="characters" autocomplete="off" oninput="NPF.sku=this.value.toUpperCase()"></div><div><label>Name</label><input value="${esc(NPF.name)}" autocomplete="off" oninput="NPF.name=this.value"></div></div>
  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px"><div><label>Sell price</label><input type="number" inputmode="numeric" value="${esc(NPF.price)}" placeholder="0" oninput="NPF.price=this.value"></div><div><label>Jasa wo/s</label><input type="number" inputmode="numeric" value="${esc(NPF.jd)}" placeholder="0" oninput="NPF.jd=this.value"></div><div><label>Jasa w/s</label><input type="number" inputmode="numeric" value="${esc(NPF.jt)}" placeholder="0" oninput="NPF.jt=this.value"></div></div>
  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"><button class="btn p" onclick="savePart('')">+ Add sparepart</button><button class="btn" onclick="openScan('sku')">📷 Scan barcode</button></div></div>
- <div class="card"><h2>Spareparts (${L.parts.length})</h2><input type="search" value="${esc(PQ)}" placeholder="Search SKU or name…" oninput="PQ=this.value;PLim=50;plRefresh()" style="margin-bottom:6px"><div id="plist">${listHTML()}</div></div>`;
+ <div class="card"><h2>Spareparts (${L.parts.length})</h2><input type="search" value="${esc(PQ)}" placeholder="Search SKU or name…" oninput="PQ=this.value;PLim=50;plRefresh()" style="margin-bottom:6px"><div id="plist">${listHTML()}</div></div>
+ <div class="card"><h2>Packages (${L.pkgs.length})</h2><input type="search" value="${esc(PKQ)}" placeholder="Search package, SKU or part name…" oninput="PKQ=this.value;pkRefresh()" style="margin-bottom:6px"><div id="pklist">${pkListHTML()}</div></div>`;
 }
 function savePart(id){
  const src=id?PE[id]:NPF;if(!src)return;
