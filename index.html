@@ -1806,4 +1806,72 @@ function tag(){t=0;document.querySelectorAll("button.btn:not(.x):not(.addb)").fo
 function q(){if(!t)t=setTimeout(tag,60)}
 new MutationObserver(q).observe(document.body,{childList:true,subtree:true,characterData:true});tag()})();
 </script>
+<style>
+/* Tampilan tanggal HH/BB/TTTT (nilai tersimpan tetap YYYY-MM-DD) */
+.dfw{position:relative;display:block;min-width:0}
+.dfw.il{display:inline-block;vertical-align:middle}
+.dfw>input[type=date]{position:absolute;left:0;top:0;width:100%;height:100%;opacity:0;margin:0;cursor:pointer;z-index:2;min-height:0}
+.dfw>.dfv{pointer-events:none;padding-right:34px!important;background-repeat:no-repeat;background-position:right 10px center;background-size:16px 16px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E")}
+.dfw:focus-within>.dfv{outline:2px solid #2563eb;outline-offset:1px}
+.dfw.dis>.dfv{opacity:.5}
+</style>
+<script>
+/* Semua bidang tanggal ditampilkan sebagai HH/BB/TTTT (hari/bulan/tahun) */
+(function(){
+  function fmt(v){var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v||"");return m?m[3]+"/"+m[2]+"/"+m[1]:""}
+  function sync(i){
+    var w=i.parentNode;if(!w||!w.classList||!w.classList.contains("dfw"))return;
+    var v=w.querySelector(".dfv");if(!v)return;
+    v.value=fmt(i.value);
+    w.classList.toggle("dis",!!i.disabled);
+  }
+  function wrap(i){
+    if(i.parentNode&&i.parentNode.classList&&i.parentNode.classList.contains("dfw"))return;
+    var w=document.createElement("span");w.className="dfw";
+    var auto=i.style&&i.style.width==="auto";if(auto)w.classList.add("il");
+    var v=document.createElement("input");
+    v.type="text";v.readOnly=true;v.tabIndex=-1;v.className="dfv";
+    v.placeholder="hh/bb/tttt";v.setAttribute("aria-hidden","true");
+    if(i.style&&i.style.cssText)v.style.cssText=i.style.cssText;
+    if(auto)v.size=10;
+    i.parentNode.insertBefore(w,i);
+    w.appendChild(v);w.appendChild(i);
+    sync(i);
+  }
+  function scan(root){
+    var l=(root||document).querySelectorAll?(root||document).querySelectorAll('input[type="date"]'):[];
+    for(var k=0;k<l.length;k++)wrap(l[k]);
+  }
+  /* buka kalender saat disentuh/diklik */
+  document.addEventListener("click",function(e){
+    var t=e.target;
+    if(t&&t.tagName==="INPUT"&&t.type==="date"&&t.parentNode.classList.contains("dfw")&&!t.disabled){
+      try{if(t.showPicker)t.showPicker()}catch(x){}
+    }
+  },true);
+  /* perbarui tampilan saat nilai berubah */
+  ["input","change"].forEach(function(ev){
+    document.addEventListener(ev,function(e){var t=e.target;if(t&&t.tagName==="INPUT"&&t.type==="date")sync(t)},true);
+  });
+  /* perbarui juga bila kode aplikasi mengisi .value lewat script */
+  try{
+    var d=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value");
+    Object.defineProperty(HTMLInputElement.prototype,"value",{
+      configurable:true,enumerable:d.enumerable,
+      get:function(){return d.get.call(this)},
+      set:function(x){d.set.call(this,x);if(this.type==="date")sync(this)}
+    });
+  }catch(x){}
+  new MutationObserver(function(ms){
+    for(var a=0;a<ms.length;a++){
+      var n=ms[a].addedNodes;
+      for(var b=0;b<n.length;b++){
+        var el=n[b];if(el.nodeType!==1)continue;
+        if(el.matches&&el.matches('input[type="date"]'))wrap(el);else scan(el);
+      }
+    }
+  }).observe(document.body,{childList:true,subtree:true});
+  scan(document);
+})();
+</script>
 </body></html>
