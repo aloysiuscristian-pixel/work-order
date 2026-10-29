@@ -464,9 +464,9 @@ function nav(){
  const nProc=D.orders.filter(o=>!isDone(o)).length+D.ovh.filter(e=>!isDone(e)).length,nNew=D.parts.filter(p=>p.fd).length,
  G=[
   {k:"kerja",l:"Kerja",bd:nProc?String(nProc):"",t:[["order","Work Order"],["ovh","Overhaul"],["proc","Process ("+nProc+")"]]},
+  {k:"data",l:"Data",bd:nNew?"+"+nNew:"",t:[["services","Services"],["parts","Spareparts"+(nNew?" ("+nNew+" new)":"")],["motors","Motor Types"],["mechs","Mechanics"]]},
   {k:"laporan",l:"Laporan",t:[["daily","Daily Result"],["profit","Profit Monthly"],["perf","Mechanic Monthly"],["tax","Tax & Reorder Monthly"]]},
   {k:"uang",l:"Keuangan",t:[["exp","Expense"],["adv","Salary"]]},
-  {k:"data",l:"Data",bd:nNew?"+"+nNew:"",t:[["services","Services"],["parts","Spareparts"+(nNew?" ("+nNew+" new)":"")],["motors","Motor Types"],["mechs","Mechanics"]]},
   {k:"riwayat",l:"Riwayat",bd:String(D.orders.length+D.ovh.length),t:[["hist",""]]},
   {k:"sync",l:"Sync"+(SY.token?(SY.err?" ⚠":" ✓"):""),t:[["sync",""]]}
  ],cur=G.find(g=>g.t.some(x=>x[0]===tab))||G[0];
