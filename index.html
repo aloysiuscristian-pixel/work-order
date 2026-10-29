@@ -1219,7 +1219,7 @@ function recHTML(l,p,w){
  w=w||"o";
  const src=recSrc(l,p),L=w==="o"?O.pl:w==="f"?OF.pl:((D.ovh.find(x=>x.id===w)||{}).pl||[]);
  p=src;
- const _h=w==="o"?O:w==="f"?OF:D.ovh.find(x=>x.id===w);if(_h&&_h.status==="Done")return"";
+ const _h=w==="o"?O:w==="f"?OF:D.ovh.find(x=>x.id===w);if(_h&&_h.status==="Done"&&!(w==="o"&&!_h.id))return""; /* WO baru (belum disimpan) tetap menampilkan rekomendasi walau tanggal selesai sudah diisi (WO tanggal lalu) */
  if(l.rd||!p||!(num(p.jd)>0||num(p.jt)>0)||(w==="o"&&O.po)||pkHas(L,l))return"";
  /* sudah dipilih (masuk ke List of Work) -> sembunyikan kartu; hapus barisnya di List of Work (atau sparepartnya di Overhaul) untuk memunculkannya lagi */
  if(l.rj)return"";
@@ -1285,9 +1285,13 @@ function pkcPick(w,id){const a=document.activeElement;if(a&&a.blur)a.blur();pkAd
 /* package-level jasa recommendation: first line of the package carries the recommendation, the others stay quiet while it is there */
 function pkMark(L,got,k,on,w){
  if(!on||!got.length)return;
- if(got.some(l=>l.pk&&l.pk.n===(k.name||"Package")))return;
- const ld=got.find(l=>!l.pk&&!l.rj);if(!ld)return;
- ld.pk={n:k.name||"Package",jd:num(k.jd),jt:num(k.jt)};ld.rd="";
+ const nm=k.name||"Package",snap={n:nm,jd:num(k.jd),jt:num(k.jt)};
+ /* holder lama untuk paket yang sama: perbarui harga & munculkan lagi bila sebelumnya ditutup (✕) */
+ const old=L.find(l=>l.pk&&l.pk.n===nm);
+ if(old){old.pk=snap;old.rd="";return}
+ /* pilih baris pemegang rekomendasi: utamakan baris bebas, lalu baris mana pun yang belum jadi pemegang paket lain */
+ const ld=got.find(l=>!l.pk&&!l.rj)||got.find(l=>!l.pk);if(!ld)return;
+ ld.pk=snap;ld.rd="";ld.pf="";
  got.forEach(l=>{if(l!==ld&&!l.pk&&!l.rj)l.pf=ld.id})}
 const pkHas=(L,l)=>!!(l&&l.pf&&(L||[]).some(x=>x.id===l.pf&&x.pk));
 function pkAdd(w,id){
