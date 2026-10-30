@@ -743,12 +743,106 @@ function fxDel(k){k=decodeURIComponent(k);if(confirm("Hapus perubahan gaji tetap
 function fxMonthSel(){return `<div style="margin:0 0 10px;padding:8px;border:1px solid var(--bd);border-radius:8px"><label>Gaji tetap berlaku mulai bulan</label><input type="month" value="${FXM}" onchange="FXM=this.value||FXM;draw()"><p style="color:var(--mu);font-size:12px;margin:6px 0 0">Gaji tetap yang Anda ubah hanya berlaku dari bulan ini ke depan. Laporan bulan-bulan sebelumnya tetap memakai gaji tetap lamanya.</p></div>`}
 function fxList(key){const K=key.toUpperCase()+"@",ks=Object.keys(D.mfix).filter(k=>k.startsWith(K)).sort();if(!ks.length)return"";return `<div style="color:var(--mu);font-size:12px;margin:-4px 0 8px 4px">Riwayat gaji tetap: `+ks.map(k=>{const m=k.slice(K.length),v=D.mfix[k];return `mulai ${mName(m)} → ${v>0?rp(v):"tanpa gaji tetap"} <span style="cursor:pointer;color:#b91c1c" onclick="fxDel('${encodeURIComponent(k)}')">✕</span>`}).join(" · ")+`</div>`}
 function setStf(id,v){fxSet("S:"+id,num(v))}
+/* ===== RINCIAN LENGKAP LAPORAN LABA BULANAN (detail keterangan) ===== */
+function profitDetail(c,fxNet,fxIn,fxOv,fxSv,fxSp,fm,sf){
+ const mo=PM,
+ nt=s=>`<div style="display:block;border:0;padding:0 0 7px 10px;font-size:12px;color:var(--mu);line-height:1.45">${s}</div>`,
+ rw=(l,v,n,cl)=>`<div${cl?` class="${cl}"`:""}><span>${l}</span><b>${v}</b></div>${n?nt(n):""}`,
+ hd=t=>`<div class="h">${t}</div>`,
+ pc=(a,b)=>b>0?Math.round(a/b*100)+"%":"-",
+ det=(n,inner)=>n>0?`<details style="margin:2px 0 8px"><summary style="cursor:pointer;font-size:12px;color:var(--mu);padding:2px 0">Lihat rincian (${n} item)</summary>${inner}</details>`:"";
+ const dn=D.orders.filter(o=>isDone(o)&&rd(o)===mo),TT=dn.map(o=>totals(o)),sm=k=>TT.reduce((a,t)=>a+t[k],0),
+ nSv=dn.filter(o=>!o.po).length,nPo=dn.length-nSv,
+ ov=D.ovh.filter(e=>isDone(e)&&rd(e)===mo),
+ ovPr=ov.reduce((a,e)=>a+num(e.price),0),ovSvP=ov.reduce((a,e)=>a+num(e.sprice),0),ovPf=ov.reduce((a,e)=>a+ovP(e).pf,0),
+ S=sm("S"),SS=sm("SS"),pfO=sm("pf"),pp=sm("pp"),pr=sm("pr"),fxO=sm("fx"),fxG=fxO/(1-SPLIT.t),
+ exD=D.expenses.filter(e=>(e.date||"").slice(0,7)===mo),exM=D.mexp.filter(e=>e.month===mo),
+ ext=D.extras.filter(e=>(e.date||"").slice(0,7)===mo),
+ ded=D.advances.filter(e=>dedOK(e)&&(e.date||"").slice(0,7)===mo),
+ kas=D.advances.filter(e=>!dedOK(e)&&(e.date||"").slice(0,7)===mo),
+ totExD=exD.reduce((a,e)=>a+num(e.amount),0),totExM=exM.reduce((a,e)=>a+num(e.amount),0),
+ fxN=fixNames().filter(m=>fixAt(m,mo)>0),
+ fz=fm+sf,now=c.store-expM(mo)-fz-extM(mo)+dedM(mo),shown=c.store-fxIn;
+ const g={};exD.forEach(e=>{const k=(e.name||"-").trim();g[k]=g[k]||{n:0,v:0};g[k].n++;g[k].v+=num(e.amount)});
+ const gl=Object.entries(g).sort((a,b)=>b[1].v-a[1].v);
+ let h=`<div class="card sum"><h2>Rincian lengkap · ${mName(mo)}</h2><p style="color:var(--mu);font-size:12px;margin:0 0 4px">Penjelasan dari mana setiap angka di laporan atas berasal. Semua dihitung dari order dan turmes berstatus Selesai dengan tanggal selesai di bulan ini.</p>`;
+
+ /* 1. Ringkasan */
+ h+=hd("1 · Ringkasan pekerjaan selesai")+rw("Order PKB (servis)",nSv,"Order servis (Work Order) yang selesai bulan ini.")+rw("Order hanya sparepart",nPo,"Pelanggan hanya membeli sparepart, tanpa servis.")+rw("Pekerjaan turmes",ov.length,"Turmes (overhaul mesin) yang selesai bulan ini. Tidak masuk hitungan \"Order\" di atas.");
+
+ /* 2. Jasa */
+ h+=hd("2 · Pembagian harga jasa (PKB biasa)")+rw("Total harga jasa",rp(S),"Jumlah harga semua baris jasa biasa. Jasa Spesial dan turmes dihitung terpisah di bawah.")
+ +rw("Upah mekanik 68% (non gaji tetap)",rp(sm("mech")),"Dibayarkan ke mekanik yang tidak bergaji tetap. Masuk ke tab Gaji, bukan beban toko.")
+ +rw("Pajak 2% dari jasa",rp(sm("tax")),"Disisihkan untuk pajak, tidak menjadi laba toko. Lihat tab Pajak &amp; Restok Bulanan.")
+ +rw("Bagian toko 30%",rp(c.ss),"30% dari jasa mekanik non gaji tetap. Ini yang tampil sebagai &quot;Bagian toko dari jasa (30%)&quot;.")
+ +rw("Jasa mekanik gaji tetap",rp(fxG),"Jasa yang dikerjakan mekanik bergaji tetap. Tidak ada upah 68%; setelah pajak 2% sisanya ("+rp(fxO)+") masuk toko untuk menutup gaji tetap (lihat bagian 7).");
+
+ /* 3. Sparepart */
+ h+=hd("3 · Sparepart")+rw("Penjualan sparepart (order)",rp(pp),"Total harga jual sparepart pada order selesai (belum termasuk sparepart di turmes).")
+ +rw("Laba sparepart",rp(c.pf),"Dari order "+rp(pfO)+" + dari turmes "+rp(ovPf)+". Seluruhnya menjadi laba toko, tanpa bagian mekanik dan tanpa pajak.")
+ +rw("Biaya restok (harga − laba)",rp(pr),"Bagian harga sparepart yang harus disisihkan untuk belanja stok lagi. Tidak dihitung sebagai laba. Rinciannya di tab Pajak &amp; Restok Bulanan.");
+
+ /* 4. Turmes */
+ if(ov.length)h+=hd("4 · Turmes (overhaul mesin)")+rw("Harga turmes mesin",rp(ovPr),"Mekanik 80% = "+rp(ovPr*OV.m)+" (tambahan di atas gaji, juga untuk mekanik gaji tetap) · Toko 18% = "+rp(ovPr*OV.s)+" · Pajak 2% = "+rp(ovPr*OV.t)+".")
+ +rw("Harga jenis jasa di turmes",rp(ovSvP),"Toko 98% = "+rp(ovSvP*SVC.s)+" · Pajak 2% = "+rp(ovSvP*SVC.t)+". Tidak ada bagian mekanik.");
+
+ /* 5. Jasa spesial */
+ if(SS>0)h+=hd("5 · Jasa Spesial")+rw("Total Jasa Spesial",rp(SS),"Mekanik 80% = "+rp(sm("spM"))+" (tambahan di atas gaji, tanpa pajak) · Toko 20% = "+rp(sm("spS"))+".");
+
+ /* 6. Diskon */
+ if(c.disc>0)h+=hd("6 · Diskon")+rw("Diskon ditanggung toko",rp(c.disc),"Diskon pelanggan tidak mengurangi upah mekanik maupun pajak, jadi seluruhnya mengurangi laba toko.");
+
+ /* 7. Gaji tetap */
+ h+=hd("7 · Mekanik gaji tetap: apakah pemasukannya menutup gaji?");
+ if(!fxN.length)h+=nt("Tidak ada mekanik bergaji tetap bulan ini.");
+ fxN.forEach(m=>{
+  let wo=0;dn.forEach(o=>o.lines.forEach(l=>{if(!l.sp&&l.mech===m)wo+=num(l.price)*(1-SPLIT.t)}));
+  const oe=ov.filter(e=>e.mech===m),tm=oe.reduce((a,e)=>a+num(e.price)*OV.s,0),sj=oe.reduce((a,e)=>a+num(e.sprice)*SVC.s,0),sp=spF(m,mo),gj=fixAt(m,mo),tot=wo+tm+sj+sp,d=tot-gj;
+  h+=rw(esc(m),(d>=0?"✓ lebih ":"✗ kurang ")+rp(Math.abs(d)),"Pemasukan: jasa PKB 98% "+rp(wo)+" + turmes 18% "+rp(tm)+" + jasa turmes 98% "+rp(sj)+" + Jasa Spesial 20% "+rp(sp)+" = <b>"+rp(tot)+"</b> − gaji tetap "+rp(gj)+" = <b>"+(d<0?"− ":"")+rp(Math.abs(d))+"</b> ("+pc(tot,gj)+" dari gaji).")});
+ if(fxN.length)h+=rw("Total pemasukan mekanik gaji tetap",rp(fxIn),"Jasa PKB "+rp(fxO)+" + turmes 18% "+rp(fxOv)+" + jasa turmes 98% "+rp(fxSv)+" + Jasa Spesial 20% "+rp(fxSp)+".")
+ +rw("Total gaji tetap mekanik",rp(fm),"Dikurangi penuh dari laba toko di tabel bulanan.")
+ +rw(fxNet>=0?"Kelebihan (pemasukan − gaji tetap)":"Kekurangan (gaji tetap − pemasukan)",(fxNet>=0?"+ ":"− ")+rp(Math.abs(fxNet)),"Inilah angka di laporan atas. "+(fxNet>=0?"Pemasukan mekanik gaji tetap lebih besar dari gajinya, selisihnya menambah laba toko.":"Pemasukan mekanik gaji tetap belum cukup menutup gajinya, selisihnya ditanggung toko dan mengurangi laba.")+" Laba sparepart dari pekerjaan mereka tidak ikut dihitung di sini.","b");
+
+ /* 8. Rekonsiliasi */
+ h+=hd("8 · Hubungan dua angka &quot;Laba toko&quot;")+rw("Laba toko (di luar mekanik gaji tetap)",rp(shown),"Angka di laporan atas.")
+ +rw("+ Pemasukan mekanik gaji tetap",rp(fxIn),"Pemasukan dari bagian 7.")
+ +rw("= Total laba toko (kolom &quot;Laba toko&quot; di tabel bulanan)",rp(c.store),"Di tabel bulanan pemasukan ini dimasukkan penuh, lalu gaji tetap dikurangkan penuh di kolom Gaji. Hasil akhirnya sama dengan laporan atas.","b");
+
+ /* 9. Pengeluaran */
+ h+=hd("9 · Pengeluaran")+rw("Pengeluaran harian",rp(totExD),exD.length?exD.length+" catatan. Pengeluaran yang dicatat per hari (listrik, makan, belanja kecil, dll.).":"Tidak ada pengeluaran harian bulan ini.")
+ +det(gl.length,gl.map(([k,v])=>rw(esc(k)+(v.n>1?" ×"+v.n:""),rp(v.v))).join(""))
+ +rw("Pengeluaran bulanan",rp(totExM),exM.length?exM.length+" tagihan tetap bulanan (sewa, listrik, internet, dll.).":"Tidak ada pengeluaran bulanan bulan ini.")
+ +det(exM.length,exM.map(e=>rw(esc(e.name||"-"),rp(num(e.amount)))).join(""))
+ +rw("Total pengeluaran",rp(totExD+totExM),"= "+pc(totExD+totExM,c.store)+" dari total laba toko.","b");
+
+ /* 10. Gaji */
+ const stf=D.staff.filter(s=>stfAt(s,mo)>0);
+ h+=hd("10 · Gaji dan penyesuaian gaji")+rw("Gaji tetap mekanik",rp(fm),"Sudah dikurangi dengan pemasukan mereka di bagian 7, sehingga di laporan atas hanya tampil selisihnya.")
+ +rw("Gaji pekerja lain",rp(sf),stf.length?stf.map(s=>esc(s.name)+(s.role?" ("+esc(s.role)+")":"")+" "+rp(stfAt(s,mo))).join(" · "):"Tidak ada pekerja lain bergaji.")
+ +rw("Pendapatan tambahan pekerja (bonus/lembur)",rp(extM(mo)),ext.length?"Menjadi beban toko.":"Tidak ada bulan ini.")
+ +det(ext.length,ext.map(e=>rw(esc(e.mech||"-")+" · "+esc((e.date||"").slice(0,10))+(e.note?" · "+esc(e.note):""),rp(num(e.amount)))).join(""))
+ +rw("Potongan gaji (bolos/terlambat/lainnya)",rp(dedM(mo)),ded.length?"Gaji yang dipotong dari pekerja. Mengurangi beban gaji, jadi menambah laba toko.":"Tidak ada bulan ini.")
+ +det(ded.length,ded.map(e=>rw(esc(e.mech||"-")+" · "+esc(e.kind||"")+" · "+esc((e.date||"").slice(0,10))+(e.note?" · "+esc(e.note):""),"+ "+rp(num(e.amount)))).join(""))
+ +(kas.length?rw("Kasbon (hanya catatan)",rp(kas.reduce((a,e)=>a+num(e.amount),0)),"Kasbon dipotong dari gaji pekerja, tidak mengubah laba toko."):"");
+
+ /* 11. Hitung akhir */
+ h+=hd("11 · Perhitungan akhir laba toko saat ini")
+ +rw("Total laba toko",rp(c.store),"Bagian toko dari jasa + pemasukan mekanik gaji tetap + laba sparepart + turmes + Jasa Spesial − diskon.")
+ +rw("− Pengeluaran",rp(totExD+totExM))
+ +rw("− Gaji tetap mekanik",rp(fm))
+ +rw("− Gaji pekerja lain",rp(sf))
+ +rw("− Pendapatan tambahan pekerja",rp(extM(mo)))
+ +rw("+ Potongan gaji",rp(dedM(mo)))
+ +rw("= LABA TOKO SAAT INI",rp(now),"Sama dengan angka di kartu atas dan kolom &quot;Laba saat ini&quot; di tabel bulanan. Setara "+pc(now,c.store)+" dari total laba toko.","b store");
+ return h+`</div>`}
+
 function vProfit(){
  const Z={n:0,ss:0,fx:0,ov:0,sv:0,pf:0,disc:0,sp:0,store:0},st=profitStats(),months=[...new Set([PM,...Object.keys(st),...D.expenses.map(e=>e.date.slice(0,7)).filter(Boolean),...D.mexp.map(e=>e.month).filter(Boolean)])].sort().reverse(),c=st[PM]||Z,fm=fixT(PM),sf=stfT(PM),fz=fm+sf,fzM=m=>fixT(m)+stfT(m),fxO=D.ovh.filter(e=>isDone(e)&&rd(e)===PM&&fixAt(e.mech,PM)>0),fxOv=fxO.reduce((a,e)=>a+num(e.price)*OV.s,0),fxSv=fxO.reduce((a,e)=>a+num(e.sprice)*SVC.s,0),fxSp=fixNames().filter(m=>fixAt(m,PM)>0).reduce((a,m)=>a+spF(m,PM),0),fxIn=c.fx+fxOv+fxSv+fxSp,fxNet=fxIn-fm,shown=c.store-fxIn;
  const all=Object.values(st).reduce((a,x)=>({n:a.n+x.n,ss:a.ss+x.ss,fx:a.fx+x.fx,ov:a.ov+x.ov,sv:a.sv+x.sv,pf:a.pf+x.pf,disc:a.disc+x.disc,sp:a.sp+x.sp,store:a.store+x.store}),Z);
  const max=Math.max(1,...Object.values(st).map(x=>Math.abs(x.store))),allExp=D.expenses.reduce((a,e)=>a+num(e.amount),0)+D.mexp.reduce((a,e)=>a+num(e.amount),0),allFix=months.reduce((a,m)=>a+fzM(m),0)+D.extras.reduce((a,e)=>a+num(e.amount),0)-dedAll(),td='style="padding:0 6px"';
  return `<div class="card"><label>Month</label><select onchange="PM=this.value;draw()">${months.map(m=>`<option value="${m}" ${m===PM?"selected":""}>${mName(m)}</option>`).join("")}</select></div>
  <div class="card sum"><h2>Store profit · ${mName(PM)}</h2><div><span>Orders</span><b>${c.n}</b></div><div><span>Store share of service (30%)</span><b>${rp(c.ss)}</b></div><div><span>+ Sparepart profit</span><b>${rp(c.pf)}</b></div>${c.sp-fxSp>0?`<div><span>+ Jasa spesial (20%)</span><b>${rp(c.sp-fxSp)}</b></div>`:""}${c.ov-fxOv>0?`<div><span>+ Overhaul engine (18%)</span><b>${rp(c.ov-fxOv)}</b></div>`:""}${c.sv-fxSv>0?`<div><span>+ Overhaul service type (98%)</span><b>${rp(c.sv-fxSv)}</b></div>`:""}${c.disc>0?`<div><span>− Discounts (paid by store)</span><b>− ${rp(c.disc)}</b></div>`:""}<div class="b store"><span>STORE PROFIT</span><span>${rp(shown)}</span></div><div><span>− Expenses (daily + monthly)</span><b>− ${rp(expM(PM))}</b></div>${fm>0?`<div><span>${fxNet>=0?"+ Fixed salary surplus (after fixed-salary mechanics revenue)":"− Fixed salary shortfall (after fixed-salary mechanics revenue)"}</span><b>${fxNet>=0?"+ ":"− "}${rp(Math.abs(fxNet))}</b></div>`:""}${sf>0?`<div><span>− Other workers salary</span><b>− ${rp(sf)}</b></div>`:""}${extM(PM)>0?`<div><span>− Worker extra income</span><b>− ${rp(extM(PM))}</b></div>`:""}${dedM(PM)>0?`<div><span>+ Potongan gaji (bolos/terlambat/lainnya)</span><b>+ ${rp(dedM(PM))}</b></div>`:""}<div class="b store"><span>PROFIT STORE NOW</span><span>${rp(c.store-expM(PM)-fz-extM(PM)+dedM(PM))}</span></div></div>
+ ${profitDetail(c,fxNet,fxIn,fxOv,fxSv,fxSp,fm,sf)}
  <div class="card"><h2>Store profit by month</h2><div class="sc"><table style="width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap"><tr style="color:var(--mu);font-size:12px;text-align:right"><th style="text-align:left;padding:6px">Month</th><th ${td}>Orders</th><th ${td}>Service (30%)</th><th ${td}>Fixed-mech revenue</th><th ${td}>Parts profit</th><th ${td}>Overhaul (18%)</th><th ${td}>Overhaul service (98%)</th><th ${td}>Jasa Spesial (20%)</th><th ${td}>Discount</th><th ${td}>Store profit</th><th ${td}>Expenses</th><th ${td}>Salaries</th><th ${td}>Profit now</th></tr>
  ${months.map(m=>{const x=st[m]||Z;return `<tr style="border-top:1px solid var(--bd);text-align:right"><td style="text-align:left;padding:8px 6px">${mName(m)}<div style="height:6px;border-radius:3px;background:var(--ok);width:${Math.max(0,x.store)/max*100}%;margin-top:4px;opacity:.85"></div></td><td ${td}>${x.n}</td><td ${td}>${rp(x.ss)}</td><td ${td}>${x.fx>0?rp(x.fx):"-"}</td><td ${td}>${rp(x.pf)}</td><td ${td}>${x.ov>0?rp(x.ov):"-"}</td><td ${td}>${x.sv>0?rp(x.sv):"-"}</td><td ${td}>${x.sp>0?rp(x.sp):"-"}</td><td ${td}>${x.disc>0?"− "+rp(x.disc):"-"}</td><td ${td}><b class="store">${rp(x.store)}</b></td><td ${td}>${expM(m)>0?"− "+rp(expM(m)):"-"}</td><td ${td}>${fzM(m)+extM(m)-dedM(m)>0?"− "+rp(fzM(m)+extM(m)-dedM(m)):"-"}</td><td ${td}><b class="store">${rp(x.store-expM(m)-fzM(m)-extM(m)+dedM(m))}</b></td></tr>`}).join("")}
  <tr style="border-top:2px solid var(--bd);text-align:right;font-weight:700"><td style="text-align:left;padding:8px 6px">ALL MONTHS</td><td ${td}>${all.n}</td><td ${td}>${rp(all.ss)}</td><td ${td}>${all.fx>0?rp(all.fx):"-"}</td><td ${td}>${rp(all.pf)}</td><td ${td}>${all.ov>0?rp(all.ov):"-"}</td><td ${td}>${all.sv>0?rp(all.sv):"-"}</td><td ${td}>${all.sp>0?rp(all.sp):"-"}</td><td ${td}>${all.disc>0?"− "+rp(all.disc):"-"}</td><td ${td}>${rp(all.store)}</td><td ${td}>− ${rp(allExp)}</td><td ${td}>${allFix>0?"− "+rp(allFix):"-"}</td><td ${td}>${rp(all.store-allExp-allFix)}</td></tr></table></div>
