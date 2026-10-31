@@ -1294,7 +1294,7 @@ function lcrEdit(id){const e=D.lcr.find(x=>x.id===id);if(!e)return;
  LF={id:e.id,date:e.date,plate:e.plate,motor:e.motor,km:e.km||"",eng:e.eng,frame:e.frame,kind:e.kind,status:e.status,mech:e.mech,price:e.price,mpay:e.mpay||"",cost:e.cost||"",vno:e.vno,vamt:e.vamt||"",vstat:e.vstat};
  MN["lcr|Add LCR job"]=0;draw();window.scrollTo(0,0)}
 function lcrCancel(){const keep=LF.date;LF=lcrBlank();LF.date=keep;draw()}
-function lcrDel(id){if(confirm("Delete this LCR job?")){D.lcr=D.lcr.filter(e=>e.id!==id);if(LF.id===id)LF=lcrBlank();save();draw()}}
+function lcrDel(id){if(confirm("Delete this LCR job?")){fdTomb(id);D.lcr=D.lcr.filter(e=>e.id!==id);if(LF.id===id)LF=lcrBlank();save();draw()}}
 function lcrSt(id,v){const e=D.lcr.find(x=>x.id===id);if(!e)return;
  if(v!=="Order"&&!e.mech){alert("Select a worker for this LCR job first.");draw();return}
  e.edited=today();e.status=v;e.done=v==="Done"?(e.done||today()):"";save();draw()}
@@ -1898,6 +1898,14 @@ function fdApply(e){
    if(e.ov)(o.pl||[]).forEach(stkBack);else stockSync(o.pl||[],[]);
    arr.splice(arr.indexOf(o),1)}
   return 0}
+ if(e.kind==="lcr"){/* LCR job typed on the front desk (no money fields): price, mechanic pay, cost and voucher value come from the LCR motor type */
+  const id=nid(e.id),plate=T(e.plate).toUpperCase().trim(),motor=T(e.motor).trim(),k=e.lk==="R"?"R":"T";
+  if(!plate||!motor||D.lcr.some(x=>x.id===id))return 0;
+  const t=D.lcrTypes.find(x=>x.name===motor),r=k==="R",sts=lcrSts(k),st=(sts.includes(e.status)&&e.status!=="Done")?e.status:sts[0],mech=MECH.includes(T(e.mech))?T(e.mech):"";
+  let vn=lcrVF(e.vno);if(vn&&lcrVDup(vn,id))vn="";
+  D.lcr.unshift({id,date:T(e.date).slice(0,10)||today(),done:"",edited:today(),plate,motor,km:Math.max(0,num(e.km)),eng:T(e.eng).toUpperCase().trim(),frame:T(e.frame).toUpperCase().trim(),kind:k,status:st,mech,
+   price:t?num(r?t.rp:t.tp):0,mpay:t?num(r?t.rm:t.tm):0,cost:t?num(t.c):0,vno:vn,vamt:t?num(t.v):0,vstat:"Waiting",vdate:""});
+  return 1}
  if(e.kind==="part"){
   const sku=T(e.sku).trim(),p=part(cid(e.pid))||findSku(sku);
   if(p){if(num(p.price)===0&&num(e.price)>0){p.name=T(e.name).trim()||p.name;p.price=num(e.price);p.jd=num(e.jd);p.jt=num(e.jt);if(!(num(p.profit)>0))p.fd=1;PH.delete(p);SPc=null;return 1}return 0}
@@ -1921,22 +1929,22 @@ function fdApply(e){
   if(!o.ns)stockSync([],o.pl);D.orders.unshift(o);add++}
  return add}
 /* ---- notification when new front-desk data arrives ---- */
-const FDN={pkb:0,po:0,ov:0,np:0},FDT0=document.title;
+const FDN={pkb:0,po:0,ov:0,np:0,lcr:0},FDT0=document.title;
 function fdBeep(){try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const a=new C(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.setValueAtTime(.15,a.currentTime);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+.5);o.start();o.stop(a.currentTime+.5);setTimeout(()=>{try{a.close()}catch(e){}},700)}catch(e){}try{navigator.vibrate&&navigator.vibrate([120,60,120])}catch(e){}}
-function fdTxt(){const r=[];if(FDN.pkb)r.push(FDN.pkb+" PKB");if(FDN.po)r.push(FDN.po+" Sparepart only");if(FDN.ov)r.push(FDN.ov+" Turmes");if(FDN.np)r.push(FDN.np+" sparepart baru");return r.join(" · ")}
+function fdTxt(){const r=[];if(FDN.pkb)r.push(FDN.pkb+" PKB");if(FDN.po)r.push(FDN.po+" Sparepart only");if(FDN.ov)r.push(FDN.ov+" Turmes");if(FDN.np)r.push(FDN.np+" sparepart baru");if(FDN.lcr)r.push(FDN.lcr+" LCR");return r.join(" · ")}
 function fdBanner(){
  let b=document.getElementById("fdnote");
- const tot=FDN.pkb+FDN.po+FDN.ov+FDN.np;
+ const tot=FDN.pkb+FDN.po+FDN.ov+FDN.np+FDN.lcr;
  if(!tot){if(b)b.remove();document.title=FDT0;return}
  if(!b){b=document.createElement("div");b.id="fdnote";b.setAttribute("role","status");b.style.cssText="position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top,0px));z-index:9999;max-width:560px;margin:0 auto;background:var(--card);color:var(--tx);border:2px solid var(--ac);border-radius:12px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.25)";document.body.appendChild(b)}
  const perm=(window.Notification&&Notification.permission==="default")?`<div style="margin-top:6px"><a href="#" style="color:var(--ac);font-size:12px" onclick="fdAsk();return false">🔔 Aktifkan notifikasi perangkat</a></div>`:"";
  b.innerHTML=`<div style="display:flex;gap:8px;align-items:center;justify-content:space-between"><div><b style="color:var(--ac)">🔔 Data baru dari front desk</b><div style="margin-top:2px">${fdTxt()}</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="btn p" onclick="fdGo()">Lihat</button><button class="btn" onclick="fdDismiss()" aria-label="Tutup">✕</button></div></div>${perm}`;
  document.title="("+tot+") "+FDT0}
-function fdDismiss(){FDN.pkb=FDN.po=FDN.ov=FDN.np=0;fdBanner()}
-function fdGo(){const onlyNp=FDN.np&&!FDN.pkb&&!FDN.po&&!FDN.ov,onlyPo=FDN.po&&!FDN.pkb&&!FDN.ov;if(onlyNp)tab="parts";else{tab="proc";PRS=onlyPo?"po":"svc"}fdDismiss();draw();window.scrollTo(0,0)}
+function fdDismiss(){FDN.pkb=FDN.po=FDN.ov=FDN.np=FDN.lcr=0;fdBanner()}
+function fdGo(){const onlyLcr=FDN.lcr&&!FDN.pkb&&!FDN.po&&!FDN.ov&&!FDN.np,onlyNp=FDN.np&&!FDN.pkb&&!FDN.po&&!FDN.ov&&!FDN.lcr,onlyPo=FDN.po&&!FDN.pkb&&!FDN.ov&&!FDN.lcr;if(onlyLcr)tab="lcr";else if(onlyNp)tab="parts";else{tab="proc";PRS=onlyPo?"po":"svc"}fdDismiss();draw();window.scrollTo(0,0)}
 function fdAsk(){try{Notification.requestPermission().then(()=>fdBanner())}catch(e){}}
 function fdNotify(c){
- FDN.pkb+=c.pkb;FDN.po+=c.po;FDN.ov+=c.ov;FDN.np+=c.np;fdBanner();fdBeep();
+ FDN.pkb+=c.pkb;FDN.po+=c.po;FDN.ov+=c.ov;FDN.np+=c.np;FDN.lcr+=c.lcr;fdBanner();fdBeep();
  try{if(window.Notification&&Notification.permission==="granted"){const t="Front desk: data baru";const x=new Notification(t,{body:fdTxt(),tag:"fd-new"});x.onclick=()=>{try{window.focus()}catch(e){}fdGo();x.close()}}}catch(e){}}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")fdPull()});
 /* seen ids are shared between tabs through localStorage: merge before reading and before writing, so one tab never forgets what another already processed */
@@ -1952,22 +1960,22 @@ async function fdPull(){
   const tagNew=rr.headers.get("ETag")||"",g=await rr.json();fdFail=0;const f=g.files&&g.files[FDF];if(!f){fdTag=tagNew;return}
   let t=f.content;if(f.truncated||t==null){const r=await fetch(f.raw_url,{cache:"no-store"});t=await r.text()}
   fdMerge();
-  const E=A((JSON.parse(t)||{}).entries);let add=0,n=0;const cnt={pkb:0,po:0,ov:0,np:0};
-  const cand=E.filter(e=>e&&e.id&&!fdSeen.has(e.id)&&!D.orders.some(o=>o.id===cid(e.id))&&!D.ovh.some(o=>o.id===cid(e.id)));
+  const E=A((JSON.parse(t)||{}).entries);let add=0,n=0;const cnt={pkb:0,po:0,ov:0,np:0,lcr:0};
+  const cand=E.filter(e=>e&&e.id&&!fdSeen.has(e.id)&&!D.orders.some(o=>o.id===cid(e.id))&&!D.ovh.some(o=>o.id===cid(e.id))&&!D.lcr.some(o=>o.id===cid(e.id)));
   const cloudHas=new Set();
   if(cand.length){/* the main data file lives in the same gist: learn deletions made on other devices before importing */
    const cf=g.files&&g.files[GF];if(cf&&!cf.truncated&&cf.content){try{const cd=JSON.parse(cf.content);A(cd.fdDel).forEach(x=>{x=cid(x);if(x&&!D.fdDel.includes(x))D.fdDel.push(x)});
     /* already imported by another device (cloud data has it): never import it a second time */
-    A(cd.orders).concat(A(cd.ovh)).forEach(o=>{if(o&&o.id&&!D.fdDel.includes(cid(o.id)))cloudHas.add(cid(o.id))})}catch(x){}}}
+    A(cd.orders).concat(A(cd.ovh),A(cd.lcr)).forEach(o=>{if(o&&o.id&&!D.fdDel.includes(cid(o.id)))cloudHas.add(cid(o.id))})}catch(x){}}}
   let skipped=0;
   for(const e of cand){
    if(cloudHas.has(cid(e.id))){fdSeen.add(e.id);skipped++;continue}
    if(fdGone(e.id)||(e.kind==="part"&&fdGone(e.pid))){fdSeen.add(e.id);skipped++;continue}
-   const r=fdApply(e)||0;add+=r;fdSeen.add(e.id);n++;if(r>0){cnt[e.kind==="ovh"?"ov":e.kind==="part"?"np":(e.po&&!A(e.lines).length)?"po":"pkb"]++}
+   const r=fdApply(e)||0;add+=r;fdSeen.add(e.id);n++;if(r>0){cnt[e.kind==="ovh"?"ov":e.kind==="part"?"np":e.kind==="lcr"?"lcr":(e.po&&!A(e.lines).length)?"po":"pkb"]++}
   }
   if(E.some(fdDead))fdPurge(g);
   if(skipped||n)fdSave();
-  if(n){save();draw();const real=cnt.pkb+cnt.po+cnt.ov+cnt.np;if(!fdFirst&&real){try{toast(real+" new from front desk")}catch(x){}fdNotify(cnt)}}
+  if(n){save();draw();const real=cnt.pkb+cnt.po+cnt.ov+cnt.np+cnt.lcr;if(!fdFirst&&real){try{toast(real+" new from front desk")}catch(x){}fdNotify(cnt)}}
   if(fdFirst){fdFirst=false;fdSave()}
   fdTag=tagNew;/* only remembered after everything was processed, so a failure is retried */
  }catch(e){fdFail++}finally{fdBusy=false}
