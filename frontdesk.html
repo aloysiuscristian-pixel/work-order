@@ -283,7 +283,8 @@ const MAIN="work-order-data.json",INBOX="frontdesk-inbox.json",CK="fd_cfg",PK="f
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k)||"null")??d}catch(e){return d}},sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const L0=()=>({services:[],parts:[],pkgs:[],mechs:[],motors:[],notes:[],plates:{},orders:[],lcrTypes:[],lcr:[],lcrV:[]});
 const PPK="fd_pp";let PPs=ld(PPK,[]),PQ="",PLim=50,NPF={sku:"",name:"",price:"",jd:"",jt:""},PE={};
-let C=ld(CK,{token:"",gid:""}),L=Object.assign(L0(),ld(LK,{})),P=ld(PK,[]),tab="new",F=blank(),msg=null,online=false,busy=false,AF={},AF2={},OF=blankOF();
+const fdC0=()=>({prov:"github",token:"",gid:"",fb:{url:"",key:"",email:"",rt:""}}),fdCfg=x=>{const c=Object.assign(fdC0(),x||{});c.fb=Object.assign(fdC0().fb,c.fb||{});if(c.prov!=="firebase")c.prov="github";return c};
+let C=fdCfg(ld(CK,{})),L=Object.assign(L0(),ld(LK,{})),P=ld(PK,[]),tab="new",F=blank(),msg=null,online=false,busy=false,AF={},AF2={},OF=blankOF();
 function blank(){return{q:"",plate:"",eng:"",motor:"",cust:"",phone:"",addr:"",note:"",po:false,lines:[emptyLine()],pl:[],disc:0,discT:"rp",discN:"",notes:[],NT:{t:"",w:"Out of stock"}}}
 function blankOF(){return{q:"",plate:"",eng:"",motor:"",cust:"",phone:"",addr:"",name:"",price:"",mech:"",sid:"",sname:"",sprice:"",note:"",pl:[],sl:[],jl:[emptyLine()],notes:[],NT:{t:"",w:"Out of stock"}}}
 function emptyLine(m,sp){const l={id:uid(),sid:"",name:"",price:0,mech:m||"",pj:""};if(sp)l.sp=1;return l}
@@ -293,6 +294,51 @@ const pk=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,""),isNP=p=>pk(p)==
 const normSku=v=>String(v==null?"":v).toLowerCase().replace(/[^a-z0-9]/g,"");
 const part=id=>L.parts.find(p=>p.id===id),findSku=c=>{const k=normSku(c);return k?L.parts.find(p=>normSku(p.sku)===k)||null:null};
 const pLbl=l=>{const p=part(l.pid);return p?p.sku+" · "+p.name:""};
+
+/* ---------- Firebase Realtime Database (plain REST, no SDK) ---------- */
+const FBD="wo",FBCH=900000;
+const fbKey=id=>String(id==null?"":id).replace(/[.$#\[\]\/\u0000-\u001f\u007f]/g,"_")||"_";
+const fbNorm=u=>{u=String(u||"").trim().replace(/\/+$/,"").replace(/\.json$/i,"").replace(/\/+$/,"");if(u&&!/^https?:\/\//i.test(u))u="https://"+u;return u};
+function fbAuthMsg(m){m=String(m||"");
+ if(/EMAIL_NOT_FOUND|INVALID_PASSWORD|INVALID_LOGIN_CREDENTIALS/.test(m))return"Wrong email or password.";
+ if(/OPERATION_NOT_ALLOWED|PASSWORD_LOGIN_DISABLED/.test(m))return"Email/password sign-in is not enabled in Firebase Authentication.";
+ if(/API key|INVALID_API_KEY/i.test(m))return"The Firebase API key is not valid.";
+ if(/USER_DISABLED/.test(m))return"This Firebase user is disabled.";
+ if(/TOO_MANY_ATTEMPTS/.test(m))return"Too many attempts. Try again later.";
+ if(/TOKEN_EXPIRED|INVALID_REFRESH_TOKEN|USER_NOT_FOUND/.test(m))return"Firebase sign-in expired. Disconnect and connect again.";
+ return"Firebase sign-in failed"+(m?": "+m:"")+"."}
+function fbMk(cfg,save){
+ let tok="",exp=0;
+ const base=()=>fbNorm(cfg().url);
+ async function auth(){const c=cfg();if(!c.key||!c.rt)return"";if(tok&&Date.now()<exp-60000)return tok;
+  const r=await fetch("https://securetoken.googleapis.com/v1/token?key="+encodeURIComponent(c.key),{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=refresh_token&refresh_token="+encodeURIComponent(c.rt)});
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.id_token)throw new Error(fbAuthMsg(j&&j.error&&j.error.message));
+  tok=j.id_token;exp=Date.now()+(Number(j.expires_in)||3600)*1000;if(j.refresh_token&&j.refresh_token!==c.rt){c.rt=j.refresh_token;save()}return tok}
+ async function signIn(key,email,pass){
+  const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key="+encodeURIComponent(key),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password:pass,returnSecureToken:true})});
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.refreshToken)throw new Error(fbAuthMsg(j&&j.error&&j.error.message));
+  tok=j.idToken;exp=Date.now()+(Number(j.expiresIn)||3600)*1000;return j.refreshToken}
+ async function req(path,opt,q){
+  const b=base();if(!b)throw new Error("Firebase database URL is missing.");
+  const t=await auth(),u=(b+"/"+FBD+(path?"/"+path:"")+".json?"+(t?"auth="+encodeURIComponent(t)+"&":"")+(q?q+"&":"")).replace(/[?&]$/,"");
+  const r=await fetch(u,Object.assign({cache:"no-store"},opt));
+  if(!r.ok){let m="";try{m=(await r.json()).error||""}catch(e){}
+   throw new Error(r.status===401||r.status===403?"Firebase refused the request (check the database rules and sign-in)":r.status===404?"Firebase database not found (check the database URL)":"Firebase error "+r.status+(m?": "+m:""))}
+  return r}
+ const get=async(p,q)=>(await req(p,null,q)).json();
+ const put=(p,v)=>req(p,{method:"PUT",body:JSON.stringify(v)});
+ const patch=(p,v)=>req(p,{method:"PATCH",body:JSON.stringify(v)});
+ const del=p=>req(p,{method:"DELETE"});
+ /* The app data is stored as text chunks, so Firebase never reshapes it (it drops empty arrays and rewrites arrays as objects) and keys with dots are safe. */
+ function pack(o){const s=JSON.stringify(o),c=[];let i=0;
+  while(i<s.length){let e=Math.min(i+FBCH,s.length);if(e<s.length){const k=s.charCodeAt(e-1);if(k>=0xD800&&k<0xDC00)e--}c.push(s.slice(i,e));i=e}
+  if(!c.length)c.push("");return c}
+ function unpack(d){if(!d||!d.chunks)return null;const c=Array.isArray(d.chunks)?d.chunks:Object.keys(d.chunks).sort((a,b)=>a-b).map(k=>d.chunks[k]);return JSON.parse(c.join(""))}
+ const readData=async()=>unpack(await get("data"));
+ return{get,put,patch,del,pack,unpack,readData,signIn,req}}
+
+const FB=fbMk(()=>C.fb,()=>sv(CK,C));let fbSeenU="";
+function fdConn(){return C.prov==="firebase"?!!(C.fb&&C.fb.url):!!C.token}
 
 /* ---- GitHub Gist (same one the main app uses) ---- */
 async function gh(path,opt){
@@ -307,12 +353,18 @@ async function fileText(g,name){const f=g.files&&g.files[name];if(!f)return null
 
 /* Read-only copy of what the front desk needs. Profit, reorder cost, tax and mechanic pay are never copied. */
 async function refresh(){
- if(!C.token||busy)return;
+ if(!fdConn()||busy)return;
  try{
   if(!C.gid){C.gid=await findGist();sv(CK,C)}
   if(!C.gid)throw new Error("Main app data not found. Open the main app, connect Sync first.");
-  const g=await gh("/gists/"+C.gid),t=await fileText(g,MAIN);
-  if(t){const d=JSON.parse(t),td=today(),pl={};
+  let d=null;
+  if(C.prov==="firebase"){
+   /* tiny check first: download the main data only when it changed (or the day changed) */
+   const u=await FB.get("data/updated");
+   if(u!=null&&fbSeenU===u+"|"+today()&&L.parts&&L.parts.length){online=true;conn();softDraw();return}
+   d=await FB.readData();if(!d)throw new Error("Main app data not found. Open the main app, connect Sync first.")
+  }else{const g=await gh("/gists/"+C.gid),t=await fileText(g,MAIN);if(t)d=JSON.parse(t)}
+  if(d){const td=today(),pl={};
    [...A(d.orders),...A(d.ovh)].filter(x=>(x.cust||x.phone||x.addr)&&pk(x.plate).length>=3&&!(isNP(x.plate)&&!pk(x.eng))).forEach(x=>{const k=vk(x.plate,x.eng),o=pl[k];if(!o||T(x.date)>=o.d)pl[k]={d:T(x.date),c:T(x.cust),p:T(x.phone),a:T(x.addr),m:T(x.motor)}});
    L={services:A(d.services).map(s=>({id:s.id,name:T(s.name),price:num(s.price),sp:s.sp?1:0})).sort((a,b)=>a.name.localeCompare(b.name)),
       parts:A(d.parts).map(p=>({id:p.id,sku:T(p.sku),name:T(p.name),price:num(p.price),stock:Math.max(0,Math.floor(num(p.stock))),jd:num(p.jd),jt:num(p.jt)})),
@@ -327,7 +379,7 @@ async function refresh(){
       lcrV:A(d.lcr).map(e=>T(e&&e.vno)).filter(Boolean),
       orders:A(d.orders).filter(o=>!o.po&&(o.date===td||(o.status&&o.status!=="Done"))).map(o=>({id:o.id,queue:o.queue,plate:o.plate,motor:o.motor,cust:o.cust,status:o.status||"Done",date:o.date})).concat(A(d.ovh).filter(o=>o.date===td||(o.status&&o.status!=="Done")).map(o=>({id:o.id,queue:o.queue,plate:o.plate,motor:o.motor,cust:o.cust,status:o.status||"Done",date:o.date,ov:1})))};
    Object.keys(QX).forEach(k=>{const o=L.orders.find(x=>String(x.id)===k);if(!o||o.status!=="Waiting"||Date.now()-QX[k].t>18e5)delete QX[k]});sv(QXK,QX);
-   Object.keys(QO).forEach(k=>{const o=L.orders.find(x=>String(x.id)===k);if(!o||o.queue===QO[k].q||Date.now()-QO[k].t>18e5)delete QO[k]});sv(QOK,QO);applyPP();sv(LK,L)}
+   Object.keys(QO).forEach(k=>{const o=L.orders.find(x=>String(x.id)===k);if(!o||o.queue===QO[k].q||Date.now()-QO[k].t>18e5)delete QO[k]});sv(QOK,QO);applyPP();sv(LK,L);if(C.prov==="firebase")fbSeenU=(num(d.updated)||0)+"|"+td}
   online=true;
  }catch(e){online=false;if(!msg&&tab==="new")msg={t:"er",m:"Offline or cannot reach the main app: "+e.message}}
  conn();softDraw();
@@ -344,7 +396,19 @@ function softDraw(){const a=document.activeElement;if(a&&/^(INPUT|TEXTAREA|SELEC
 function conn(){$("conn").innerHTML='<span class="dot '+(online?"on":"")+'"></span>'+(online?"Connected":"Offline")+(P.length?" · "+P.length+" pending":"")}
 
 /* Send: touches only the inbox file, never the main data. */
+async function flushFb(){
+ if(!P.length||!fdConn()||busy)return;busy=true;
+ const out=P.slice();let ok=false;
+ try{
+  const body={};out.forEach(e=>{body[fbKey(e.id)]={c:e.created||Date.now(),j:JSON.stringify(e)}});
+  await FB.patch("inbox",body);
+  const done=new Set(out.map(e=>e.id));P=P.filter(e=>!done.has(e.id));sv(PK,P);online=true;ok=true;
+ }catch(e){online=false}
+ finally{busy=false;conn()}
+ if(P.length)setTimeout(flush,ok?0:4000);
+}
 async function flush(){
+ if(C.prov==="firebase")return flushFb();
  if(!P.length||!C.token||busy)return;busy=true;
  const out=P.slice();let ok=false;/* only what we are sending now; anything typed meanwhile stays queued */
  try{
@@ -588,7 +652,7 @@ document.addEventListener("click",e=>{const h=e.target.closest&&e.target.closest
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches(".card.mn>h2")){e.preventDefault();mnTog(e.target)}});
 function draw(){
  const a=$("app");
- if(!C.token){a.innerHTML=setup();return}
+ if(!fdConn()){a.innerHTML=setup();return}
  const tabs='<div class="tabs"><button class="btn '+(tab==="new"?"on":"")+'" onclick="tab=\'new\';msg=null;draw()">Work Order</button><button class="btn '+(tab==="ovh"?"on":"")+'" onclick="tab=\'ovh\';msg=null;draw()">Overhaul</button><button class="btn '+(tab==="lcr"?"on":"")+'" onclick="tab=\'lcr\';msg=null;draw();refresh()">LCR</button><button class="btn '+(tab==="queue"?"on":"")+'" onclick="tab=\'queue\';msg=null;draw();refresh()">Today\'s Queue</button><button class="btn '+(tab==="parts"?"on":"")+'" onclick="tab=\'parts\';msg=null;draw();refresh()">Spareparts</button></div>';
  const m=msg?'<div class="msg '+msg.t+'">'+esc(msg.m)+'</div>':"";
  const y=scrollY;a.innerHTML=tabs+m+(tab==="new"?vNew():tab==="ovh"?vOvh():tab==="lcr"?vLcr():tab==="parts"?vParts():vQueue())+(tab==="queue"?'<div class="instSlot"></div>':"");conn();if(tab==="new")calc();if(tab==="ovh")calcO();mini(a);scrollTo(0,y);
@@ -873,19 +937,41 @@ function savePart(id){
  sv(LK,L);if(id)delete PE[id];else NPF={sku:"",name:"",price:"",jd:"",jt:""};
  msg={t:"ok",m:"Saved: "+sku+" · "+name+(online?"":" (will send when online)")};draw();flush().then(()=>setTimeout(refresh,3500));
 }
+let SPV="github";
 function setup(){
+ const t=(p,l)=>'<button class="btn '+(SPV===p?"p":"")+'" onclick="SPV=\''+p+'\';draw()">'+l+'</button>';
  return `<div class="card"><h2>Connect to the main app</h2>
- <p class="mu" style="margin:0 0 10px">Paste the <b>same GitHub token</b> used in the main app's Sync tab. Everything typed here goes straight to the main app.</p>
+ <div style="display:flex;gap:8px;margin:0 0 10px">${t("github","GitHub")}${t("firebase","Firebase")}</div>
+ ${SPV==="firebase"?`<p class="mu" style="margin:0 0 10px">Use the <b>same Firebase database and sign-in</b> as in the main app's Sync tab. Everything typed here goes straight to the main app.</p>
+ <label>Database URL</label><input id="fdurl" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://your-project-default-rtdb.firebaseio.com" value="${esc(C.fb.url||"")}">
+ <label>Web API key</label><input id="fdkey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza…" value="${esc(C.fb.key||"")}">
+ <label>Email</label><input id="fdmail" type="email" autocomplete="off" autocapitalize="off" value="${esc(C.fb.email||"")}">
+ <label>Password</label><input id="fdpass" type="password" autocomplete="off" placeholder="only used to sign in">
+ <div style="margin:10px 0"><button class="btn p" onclick="connectFb()">Connect</button></div>`
+ :`<p class="mu" style="margin:0 0 10px">Paste the <b>same GitHub token</b> used in the main app's Sync tab. Everything typed here goes straight to the main app.</p>
  <label>GitHub token</label><input id="tok" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_…">
- <div style="margin:10px 0"><button class="btn p" onclick="connect()">Connect</button></div><p class="mu" id="sm"></p></div>`;
+ <div style="margin:10px 0"><button class="btn p" onclick="connect()">Connect</button></div>`}
+ <p class="mu" id="sm"></p></div>`;
 }
 async function connect(){
  const t=($("tok").value||"").trim();if(!t){$("sm").textContent="Paste the token first.";return}
- C={token:t,gid:""};$("sm").textContent="Checking…";
+ C=fdCfg({prov:"github",token:t,gid:""});$("sm").textContent="Checking…";
  try{await gh("/user");C.gid=await findGist();if(!C.gid)throw new Error("Main app data not found. In the main app open Sync and press Sync now first.");sv(CK,C);msg=null;await refresh();draw()}
- catch(e){C={token:"",gid:""};sv(CK,C);draw();$("sm").textContent="Could not connect: "+e.message}
+ catch(e){C=fdC0();sv(CK,C);draw();$("sm").textContent="Could not connect: "+e.message}
 }
-function gear(){if(confirm("Disconnect this device from the main app?")){C={token:"",gid:""};sv(CK,C);draw()}}
+async function connectFb(){
+ const g=id=>($(id).value||""),url=fbNorm(g("fdurl")),key=g("fdkey").trim(),email=g("fdmail").trim(),pass=g("fdpass");
+ if(!url){$("sm").textContent="Paste the database URL first.";return}
+ if((key||email||pass)&&!(key&&email&&pass)){$("sm").textContent="Fill the API key, email and password – or leave all three empty.";return}
+ const prev=C;C=fdCfg({prov:"firebase",gid:"fb",fb:{url,key,email:key?email:"",rt:""}});fbSeenU="";$("sm").textContent="Checking…";
+ try{
+  if(key)C.fb.rt=await FB.signIn(key,email,pass);
+  const u=await FB.get("data/updated");
+  if(u==null)throw new Error("Main app data not found. In the main app open Sync, connect Firebase and press Sync now first.");
+  sv(CK,C);msg=null;await refresh();draw()
+ }catch(e){C=prev;sv(CK,C);draw();$("sm").textContent="Could not connect: "+e.message}
+}
+function gear(){if(confirm("Disconnect this device from the main app?")){C=fdC0();fbSeenU="";sv(CK,C);draw()}}
 
 draw();refresh();flush();
 setInterval(()=>{if(document.visibilityState==="visible"){flush();refresh()}},15000);

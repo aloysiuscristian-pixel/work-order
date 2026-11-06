@@ -475,7 +475,7 @@ function nav(){
   {k:"laporan",l:"Laporan",t:[["daily","Daily Result"],["profit","Profit Monthly"],["perf","Mechanic Monthly"],["tax","Tax & Reorder Monthly"]]},
   {k:"uang",l:"Keuangan",t:[["exp","Expense"],["adv","Salary"]]},
   {k:"riwayat",l:"Riwayat",bd:String(D.orders.length+D.ovh.length),t:[["hist",""]]},
-  {k:"sync",l:"Sync"+(SY.token?(SY.err?" ⚠":" ✓"):""),t:[["sync",""]]}
+  {k:"sync",l:"Sync"+(syConn()?(SY.err?" ⚠":" ✓"):""),t:[["sync",""]]}
  ],cur=G.find(g=>g.t.some(x=>x[0]===tab))||G[0];
  GT[cur.k]=tab;
  document.getElementById("nav").innerHTML=G.map(g=>`<button class="${g===cur?"on":""}" onclick="tab=GT['${g.k}']||'${g.t[0][0]}';draw()">${g.l}${g.bd?`<span class="bd">${g.bd}</span>`:""}</button>`).join("");
@@ -491,7 +491,7 @@ function mini(root){(root||document).querySelectorAll(".card").forEach(c=>{const
 function mnTog(h){const c=h.parentElement,k=mnKey(h);const cl=!c.classList.contains("cl");c.classList.toggle("cl",cl);h.setAttribute("aria-expanded",String(!cl));MN[k]=cl?1:0}
 document.addEventListener("click",e=>{const h=e.target.closest&&e.target.closest(".card.mn>h2");if(h)mnTog(h)});
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches(".card.mn>h2")){e.preventDefault();mnTog(e.target)}});
-function draw(){if(tab!=="motors")NM=false;nav();const v=document.getElementById("v");v.innerHTML={order:vOrder,services:vServ,parts:vParts,perf:vPerf,ovh:vOvh,lcr:vLcr,lcrp:vLcrP,daily:vDaily,profit:vProfit,exp:vExp,adv:vAdv,tax:vTax,motors:vMotors,mechs:vMechs,proc:vProc,hist:vHist,sync:vSync}[tab]();if(tab==="order")calc();mini(v);if(tab==="sync")setTimeout(snapShow,0)}
+function draw(){if(tab!=="motors")NM=false;nav();const v=document.getElementById("v");v.innerHTML={order:vOrder,services:vServ,parts:vParts,perf:vPerf,ovh:vOvh,lcr:vLcr,lcrp:vLcrP,daily:vDaily,profit:vProfit,exp:vExp,adv:vAdv,tax:vTax,motors:vMotors,mechs:vMechs,proc:vProc,hist:vHist,sync:vSync}[tab]();if(tab==="order")calc();mini(v);if(tab==="sync")setTimeout(()=>{snapShow();fbExpList()},0)}
 
 const pk=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
 /* Engine number: identifies motorcycles without a plate ("NON DS"). Auto numbers: JM82E0000001, JM82E0000002, ... */
@@ -1744,9 +1744,56 @@ function loadX(){if(window.XLSX)return Promise.resolve();return xP=xP||loadScrip
 
 /* ---------- Cloud sync via private GitHub Gist ---------- */
 const SYK="wo_sync",GF="work-order-data.json",GD="Work Order App Data";
-let SY={token:"",gid:"",base:0,auto:true,last:0,msg:"",err:false},syBusy=false,syT=null;
-try{const x=JSON.parse(localStorage.getItem(SYK)||"{}");for(const k of["token","gid","base","auto","last"])if(k in x)SY[k]=x[k]}catch(e){}
-const sySave=()=>{try{localStorage.setItem(SYK,JSON.stringify({token:SY.token,gid:SY.gid,base:SY.base,auto:SY.auto,last:SY.last}))}catch(e){}};
+let SY={token:"",gid:"",base:0,auto:true,last:0,msg:"",err:false,prov:"github",fb:{url:"",key:"",email:"",rt:""},fmsg:"",fbad:false},syBusy=false,syT=null;
+try{const x=JSON.parse(localStorage.getItem(SYK)||"{}");for(const k of["token","gid","base","auto","last","prov","fb"])if(k in x)SY[k]=x[k]}catch(e){}
+SY.fb=Object.assign({url:"",key:"",email:"",rt:""},SY.fb||{});if(SY.prov!=="firebase")SY.prov="github";
+const sySave=()=>{try{localStorage.setItem(SYK,JSON.stringify({token:SY.token,gid:SY.gid,base:SY.base,auto:SY.auto,last:SY.last,prov:SY.prov,fb:SY.fb}))}catch(e){}};
+function syFb(){return SY.prov==="firebase"}
+function syConn(){return syFb()?!!(SY.fb&&SY.fb.url):!!SY.token}
+/* ---------- Firebase Realtime Database (plain REST, no SDK) ---------- */
+const FBD="wo",FBCH=900000;
+const fbKey=id=>String(id==null?"":id).replace(/[.$#\[\]\/\u0000-\u001f\u007f]/g,"_")||"_";
+const fbNorm=u=>{u=String(u||"").trim().replace(/\/+$/,"").replace(/\.json$/i,"").replace(/\/+$/,"");if(u&&!/^https?:\/\//i.test(u))u="https://"+u;return u};
+function fbAuthMsg(m){m=String(m||"");
+ if(/EMAIL_NOT_FOUND|INVALID_PASSWORD|INVALID_LOGIN_CREDENTIALS/.test(m))return"Wrong email or password.";
+ if(/OPERATION_NOT_ALLOWED|PASSWORD_LOGIN_DISABLED/.test(m))return"Email/password sign-in is not enabled in Firebase Authentication.";
+ if(/API key|INVALID_API_KEY/i.test(m))return"The Firebase API key is not valid.";
+ if(/USER_DISABLED/.test(m))return"This Firebase user is disabled.";
+ if(/TOO_MANY_ATTEMPTS/.test(m))return"Too many attempts. Try again later.";
+ if(/TOKEN_EXPIRED|INVALID_REFRESH_TOKEN|USER_NOT_FOUND/.test(m))return"Firebase sign-in expired. Disconnect and connect again.";
+ return"Firebase sign-in failed"+(m?": "+m:"")+"."}
+function fbMk(cfg,save){
+ let tok="",exp=0;
+ const base=()=>fbNorm(cfg().url);
+ async function auth(){const c=cfg();if(!c.key||!c.rt)return"";if(tok&&Date.now()<exp-60000)return tok;
+  const r=await fetch("https://securetoken.googleapis.com/v1/token?key="+encodeURIComponent(c.key),{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"grant_type=refresh_token&refresh_token="+encodeURIComponent(c.rt)});
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.id_token)throw new Error(fbAuthMsg(j&&j.error&&j.error.message));
+  tok=j.id_token;exp=Date.now()+(Number(j.expires_in)||3600)*1000;if(j.refresh_token&&j.refresh_token!==c.rt){c.rt=j.refresh_token;save()}return tok}
+ async function signIn(key,email,pass){
+  const r=await fetch("https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key="+encodeURIComponent(key),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password:pass,returnSecureToken:true})});
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.refreshToken)throw new Error(fbAuthMsg(j&&j.error&&j.error.message));
+  tok=j.idToken;exp=Date.now()+(Number(j.expiresIn)||3600)*1000;return j.refreshToken}
+ async function req(path,opt,q){
+  const b=base();if(!b)throw new Error("Firebase database URL is missing.");
+  const t=await auth(),u=(b+"/"+FBD+(path?"/"+path:"")+".json?"+(t?"auth="+encodeURIComponent(t)+"&":"")+(q?q+"&":"")).replace(/[?&]$/,"");
+  const r=await fetch(u,Object.assign({cache:"no-store"},opt));
+  if(!r.ok){let m="";try{m=(await r.json()).error||""}catch(e){}
+   throw new Error(r.status===401||r.status===403?"Firebase refused the request (check the database rules and sign-in)":r.status===404?"Firebase database not found (check the database URL)":"Firebase error "+r.status+(m?": "+m:""))}
+  return r}
+ const get=async(p,q)=>(await req(p,null,q)).json();
+ const put=(p,v)=>req(p,{method:"PUT",body:JSON.stringify(v)});
+ const patch=(p,v)=>req(p,{method:"PATCH",body:JSON.stringify(v)});
+ const del=p=>req(p,{method:"DELETE"});
+ /* The app data is stored as text chunks, so Firebase never reshapes it (it drops empty arrays and rewrites arrays as objects) and keys with dots are safe. */
+ function pack(o){const s=JSON.stringify(o),c=[];let i=0;
+  while(i<s.length){let e=Math.min(i+FBCH,s.length);if(e<s.length){const k=s.charCodeAt(e-1);if(k>=0xD800&&k<0xDC00)e--}c.push(s.slice(i,e));i=e}
+  if(!c.length)c.push("");return c}
+ function unpack(d){if(!d||!d.chunks)return null;const c=Array.isArray(d.chunks)?d.chunks:Object.keys(d.chunks).sort((a,b)=>a-b).map(k=>d.chunks[k]);return JSON.parse(c.join(""))}
+ const readData=async()=>unpack(await get("data"));
+ return{get,put,patch,del,pack,unpack,readData,signIn,req}}
+
+const FB=fbMk(()=>SY.fb,()=>sySave());let fbSeen=null;
+
 function syMsg(t,bad){SY.msg=t;const e=document.getElementById("symsg");if(e){e.textContent=t;e.style.color=bad?"#b91c1c":"var(--mu)"}}
 async function gh(path,opt){
  const r=await fetch("https://api.github.com"+path,Object.assign({cache:"no-cache"},opt,{headers:{Accept:"application/vnd.github+json",Authorization:"Bearer "+SY.token,"Content-Type":"application/json"}}));
@@ -1754,13 +1801,22 @@ async function gh(path,opt){
   throw new Error(r.status===401?"Token rejected. Make sure it is a classic token with the gist scope.":r.status===403||r.status===429?"GitHub refused the request ("+(m||"rate limit or missing permission")+")":r.status===404?"Not found (does the token have the gist scope?)":"GitHub error "+r.status+(m?": "+m:""))}
  return r.json();
 }
-async function syFind(){for(let p=1;p<=5;p++){const l=await gh("/gists?per_page=100&page="+p);for(const g of l)if(g.files&&g.files[GF])return g.id;if(l.length<100)break}return""}
+async function syFind(){if(syFb()){const m=await FB.get("data/updated");return m!=null?"fb":""}
+ for(let p=1;p<=5;p++){const l=await gh("/gists?per_page=100&page="+p);for(const g of l)if(g.files&&g.files[GF])return g.id;if(l.length<100)break}return""}
 async function syGet(){
+ if(syFb()){const R=await FB.readData();if(!R)throw new Error("Cloud file is missing from Firebase");fbSeen=num(R.updated);return R}
  const g=await gh("/gists/"+SY.gid),f=g.files&&g.files[GF];if(!f)throw new Error("Cloud file is missing from the gist");
  let t=f.content;if(f.truncated||t==null){const r=await fetch(f.raw_url,{cache:"no-store"});if(!r.ok)throw new Error("Could not download cloud data");t=await r.text()}
  return JSON.parse(t);
 }
-async function syPush(){
+async function fbPush(){
+ const u=D.updated,snap=mkBase(D),cu=await FB.get("data/updated");
+ /* someone else wrote since we last looked: stop and merge again instead of overwriting them */
+ if(fbSeen!=null&&cu!=null&&num(cu)!==fbSeen){const e=new Error("Cloud changed on another device. Press Sync now to merge.");e.cloudChanged=1;throw e}
+ await FB.patch("",{data:{updated:num(u),n:cntD(D),at:Date.now(),chunks:FB.pack(D)}});
+ fbSeen=num(u);SY.gid="fb";SY.base=u;SY.last=Date.now();sySave();baseSave(snap);
+}
+async function syPush(){if(syFb())return fbPush();
  const u=D.updated,snap=mkBase(D),body=JSON.stringify({files:{[GF]:{content:JSON.stringify(D)}}});
  if(!SY.gid){const g=await gh("/gists",{method:"POST",body:JSON.stringify({description:GD,public:false,files:{[GF]:{content:JSON.stringify(D)}}})});SY.gid=g.id}
  else await gh("/gists/"+SY.gid,{method:"PATCH",body});
@@ -1808,7 +1864,7 @@ async function snapRestore(t,mode){
   const M=mode==="add"?mergeD(D,P,null,true):P;
   D=M;MECH.splice(0,MECH.length,...D.mechs);sortM();SPc=null;D.updated=Date.now();
   try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
-  if(SY.token)await syPush();
+  if(syConn())await syPush();
   draw();syMsg("Dipulihkan ("+syT_()+"): "+cntD(D)+" order.")
  }catch(e){syMsg("Failed: "+(e&&e.message||e),true)}
  finally{syBusy=false;if(tab==="sync"){const m=SY.msg;draw();syMsg(m,m.startsWith("Failed"))}}
@@ -1843,28 +1899,35 @@ function mergeD(L,R,B,lw){
  return skuDedupe(norm(M))}
 const syT_=()=>new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
 async function sySync(manual){
- if(!SY.token||syBusy)return;
- syBusy=true;if(manual)syMsg("Syncing…");let ok=false;
+ if(!syConn()||syBusy)return;
+ syBusy=true;if(manual)syMsg("Syncing…");let ok=false,again=false;
  try{
   if(!SY.gid){SY.gid=await syFind();sySave()}
   if(!SY.gid){await syPush();syMsg("Cloud backup created ("+syT_()+").");ok=true}
   else{
-   const R=await syGet(),rU=num(R&&R.updated),lc=D.updated>SY.base,rc=rU>SY.base;
-   if(rU===D.updated){SY.base=D.updated;SY.last=Date.now();sySave();baseSave(mkBase(D));syMsg("Up to date ("+syT_()+").");ok=true}
-   else if(!lc&&!rc){syMsg("Up to date ("+syT_()+").");ok=true}
-   else if(lc&&!rc){await syPush();syMsg("Uploaded changes ("+syT_()+").");ok=true}
-   else if(rc&&!lc){await snapPut("sebelum unduh dari cloud",D,1);syPull(R);syMsg("Downloaded newer data ("+syT_()+").");ok=true}
-   else{/* both sides changed: merge automatically (3-way, by record id) instead of stopping */
-    const N=norm(R),M=mergeD(D,N,baseLoad(),D.updated>=rU);guard(M,D,N);
-    await snapPut("sebelum gabung (perangkat)",D);await snapPut("sebelum gabung (cloud)",N);
-    D=M;MECH.splice(0,MECH.length,...D.mechs);sortM();D.updated=Math.max(Date.now(),rU+1);SPc=null;
-    try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
-    await syPush();draw();syMsg("Merged both devices ("+syT_()+"): "+(D.orders.length+D.ovh.length)+" orders.");ok=true}
+   const fb=syFb();let R=null,rU=null;
+   if(fb){const mu=await FB.get("data/updated");if(mu!=null){rU=num(mu);fbSeen=rU}}/* Firebase: a tiny check first, the whole file is only downloaded when really needed */
+   else{R=await syGet();rU=num(R&&R.updated)}
+   if(rU===null){await syPush();syMsg("Cloud backup created ("+syT_()+").");ok=true}
+   else{
+    const lc=D.updated>SY.base,rc=rU>SY.base;
+    if(rU===D.updated){SY.base=D.updated;SY.last=Date.now();sySave();baseSave(mkBase(D));syMsg("Up to date ("+syT_()+").");ok=true}
+    else if(!lc&&!rc){syMsg("Up to date ("+syT_()+").");ok=true}
+    else if(lc&&!rc){await syPush();syMsg("Uploaded changes ("+syT_()+").");ok=true}
+    else if(rc&&!lc){R=R||await syGet();await snapPut("sebelum unduh dari cloud",D,1);syPull(R);syMsg("Downloaded newer data ("+syT_()+").");ok=true}
+    else{/* both sides changed: merge automatically (3-way, by record id) instead of stopping */
+     R=R||await syGet();rU=num(R.updated);
+     const N=norm(R),M=mergeD(D,N,baseLoad(),D.updated>=rU);guard(M,D,N);
+     await snapPut("sebelum gabung (perangkat)",D);await snapPut("sebelum gabung (cloud)",N);
+     D=M;MECH.splice(0,MECH.length,...D.mechs);sortM();D.updated=Math.max(Date.now(),rU+1);SPc=null;
+     try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
+     await syPush();draw();syMsg("Merged both devices ("+syT_()+"): "+(D.orders.length+D.ovh.length)+" orders.");ok=true}
+   }
   }
- }catch(e){syMsg("Sync failed: "+(e&&e.message||e),true)}
- finally{syBusy=false;SY.err=!ok;try{nav()}catch(e){}if(tab==="sync"&&manual)draw(),syMsg(SY.msg,SY.msg.startsWith("Sync failed")||SY.msg.startsWith("Conflict"));if(ok&&D.updated>SY.base)schedPush()}
+ }catch(e){if(e&&e.cloudChanged&&(sySync.n=(sySync.n||0)+1)<=3)again=true;else syMsg("Sync failed: "+(e&&e.message||e),true)}
+ finally{syBusy=false;if(ok)sySync.n=0;SY.err=!ok&&!again;try{nav()}catch(e){}if(again){setTimeout(()=>sySync(manual),400);return}if(tab==="sync"&&manual)draw(),syMsg(SY.msg,SY.msg.startsWith("Sync failed")||SY.msg.startsWith("Conflict"));if(ok&&D.updated>SY.base)schedPush()}
 }
-function schedPush(){if(!SY.token||!SY.auto)return;clearTimeout(syT);syT=setTimeout(()=>syBusy?schedPush():sySync(false),3000)}
+function schedPush(){if(!syConn()||!SY.auto)return;clearTimeout(syT);syT=setTimeout(()=>syBusy?schedPush():sySync(false),3000)}
 
 /* ---------- Front desk inbox (orders typed on the front desk app arrive here) ---------- */
 const FDF="frontdesk-inbox.json",FDK="wo_fd_seen";let fdBusy=false,fdFail=0,fdTag="";
@@ -1881,9 +1944,11 @@ function fdTomb(id){id=cid(id);if(!id)return;if(!D.fdDel)D.fdDel=[];
  setTimeout(()=>fdPurge(),300)}
 /* remove deleted items from the shared inbox itself, so no device (new phone, incognito) can ever re-import them */
 const fdDead=e=>e&&(fdGone(e.id)||(e.kind==="part"&&fdGone(e.pid)));
+const fdEnt=(v,k)=>{try{const e=v&&v.j?JSON.parse(v.j):v;return e&&typeof e==="object"?e:null}catch(x){return null}};
 async function fdPurge(g){
- if(!SY.token||!SY.gid)return;
+ if(!syConn()||!SY.gid)return;
  try{
+  if(syFb()){const inb=await FB.get("inbox");if(!inb)return;const x={};let n=0;Object.keys(inb).forEach(k=>{if(fdDead(fdEnt(inb[k],k))){x[k]=null;n++}});if(n)await FB.patch("inbox",x);return}
   g=g||await gh("/gists/"+SY.gid);const f=g.files&&g.files[FDF];if(!f)return;
   let t=f.content;if(f.truncated||t==null){const r=await fetch(f.raw_url,{cache:"no-store"});t=await r.text()}
   const E=A((JSON.parse(t)||{}).entries),K=E.filter(e=>!fdDead(e));
@@ -1968,34 +2033,51 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 /* seen ids are shared between tabs through localStorage: merge before reading and before writing, so one tab never forgets what another already processed */
 function fdMerge(){try{JSON.parse(localStorage.getItem(FDK)||"[]").forEach(x=>fdSeen.add(x))}catch(e){}}
 function fdSave(){fdMerge();try{localStorage.setItem(FDK,JSON.stringify([...fdSeen].slice(-1000)))}catch(e){}}
+let fbGc=false;
 async function fdPull(){
- if(!SY.token||!SY.gid||syBusy||fdBusy||(document.visibilityState==="hidden"&&!(window.Notification&&Notification.permission==="granted")))return;
+ if(!syConn()||!SY.gid||syBusy||fdBusy||(document.visibilityState==="hidden"&&!(window.Notification&&Notification.permission==="granted")))return;
  fdBusy=true;
  try{
-  const rr=await fetch("https://api.github.com/gists/"+SY.gid,{cache:"no-store",headers:Object.assign({Accept:"application/vnd.github+json",Authorization:"Bearer "+SY.token,"Content-Type":"application/json"},fdTag?{"If-None-Match":fdTag}:{})});
-  if(rr.status===304){fdFail=0;return}/* nothing changed in the gist: no download, no parsing */
-  if(!rr.ok)throw new Error("GitHub error "+rr.status);
-  const tagNew=rr.headers.get("ETag")||"",g=await rr.json();fdFail=0;const f=g.files&&g.files[FDF];if(!f){fdTag=tagNew;return}
-  let t=f.content;if(f.truncated||t==null){const r=await fetch(f.raw_url,{cache:"no-store"});t=await r.text()}
-  fdMerge();
-  const E=A((JSON.parse(t)||{}).entries);let add=0,n=0;const cnt={pkb:0,po:0,ov:0,np:0,lcr:0};
+  let E,getCd,tagNew="",fbRaw=null,g0=null;
+  if(syFb()){
+   /* Firebase: list only the keys (tiny); download the entries only when there is something we have not seen */
+   const sh=await FB.get("inbox","shallow=true");fdFail=0;fdMerge();
+   const ks=sh&&typeof sh==="object"?Object.keys(sh):[];
+   if(fbGc&&!ks.some(k=>!fdSeen.has(k)))return;
+   fbRaw=(await FB.get("inbox"))||{};
+   E=Object.keys(fbRaw).map(k=>fdEnt(fbRaw[k],k)).filter(Boolean);
+   getCd=()=>FB.readData();
+  }else{
+   const rr=await fetch("https://api.github.com/gists/"+SY.gid,{cache:"no-store",headers:Object.assign({Accept:"application/vnd.github+json",Authorization:"Bearer "+SY.token,"Content-Type":"application/json"},fdTag?{"If-None-Match":fdTag}:{})});
+   if(rr.status===304){fdFail=0;return}/* nothing changed in the gist: no download, no parsing */
+   if(!rr.ok)throw new Error("GitHub error "+rr.status);
+   tagNew=rr.headers.get("ETag")||"";const g=await rr.json();g0=g;fdFail=0;const f=g.files&&g.files[FDF];if(!f){fdTag=tagNew;return}
+   let t=f.content;if(f.truncated||t==null){const r=await fetch(f.raw_url,{cache:"no-store"});t=await r.text()}
+   fdMerge();
+   E=A((JSON.parse(t)||{}).entries);
+   getCd=async()=>{const cf=g.files&&g.files[GF];return(cf&&!cf.truncated&&cf.content)?JSON.parse(cf.content):null};
+  }
+  let add=0,n=0;const cnt={pkb:0,po:0,ov:0,np:0,lcr:0};
   const cand=E.filter(e=>e&&e.id&&!fdSeen.has(e.id)&&!D.orders.some(o=>o.id===cid(e.id))&&!D.ovh.some(o=>o.id===cid(e.id))&&!D.lcr.some(o=>o.id===cid(e.id)));
   const cloudHas=new Set();
-  if(cand.length){/* the main data file lives in the same gist: learn deletions made on other devices before importing */
-   const cf=g.files&&g.files[GF];if(cf&&!cf.truncated&&cf.content){try{const cd=JSON.parse(cf.content);A(cd.fdDel).forEach(x=>{x=cid(x);if(x&&!D.fdDel.includes(x))D.fdDel.push(x)});
+  if(cand.length){/* the main data file lives in the same place: learn deletions made on other devices before importing */
+   try{const cd=await getCd();if(cd){A(cd.fdDel).forEach(x=>{x=cid(x);if(x&&!D.fdDel.includes(x))D.fdDel.push(x)});
     /* already imported by another device (cloud data has it): never import it a second time */
-    A(cd.orders).concat(A(cd.ovh),A(cd.lcr)).forEach(o=>{if(o&&o.id&&!D.fdDel.includes(cid(o.id)))cloudHas.add(cid(o.id))})}catch(x){}}}
+    A(cd.orders).concat(A(cd.ovh),A(cd.lcr)).forEach(o=>{if(o&&o.id&&!D.fdDel.includes(cid(o.id)))cloudHas.add(cid(o.id))})}}catch(x){}}
   let skipped=0;
   for(const e of cand){
    if(cloudHas.has(cid(e.id))){fdSeen.add(e.id);skipped++;continue}
    if(fdGone(e.id)||(e.kind==="part"&&fdGone(e.pid))){fdSeen.add(e.id);skipped++;continue}
    const r=fdApply(e)||0;add+=r;fdSeen.add(e.id);n++;if(r>0){cnt[e.kind==="ovh"?"ov":e.kind==="part"?"np":e.kind==="lcr"?"lcr":(e.po&&!A(e.lines).length)?"po":"pkb"]++}
   }
-  if(E.some(fdDead))fdPurge(g);
+  if(E.some(fdDead))fdPurge(g0);
   if(skipped||n)fdSave();
   if(n){save();draw();const real=cnt.pkb+cnt.po+cnt.ov+cnt.np+cnt.lcr;if(!fdFirst&&real){try{toast(real+" new from front desk")}catch(x){}fdNotify(cnt)}}
+  if(syFb()){cand.forEach(e=>fdSeen.add(fbKey(e.id)));fbGc=true;const cut=Date.now()-3*864e5,old={};let oc=0;
+   Object.keys(fbRaw||{}).forEach(k=>{const v=fbRaw[k],en=fdEnt(v,k),cr=num(v&&v.c!=null?v.c:en&&en.created);if(cr&&cr<cut&&(fdSeen.has(k)||(en&&fdSeen.has(en.id)))){old[k]=null;oc++}});
+   if(oc)FB.patch("inbox",old).catch(()=>{});fdSave()}
   if(fdFirst){fdFirst=false;fdSave()}
-  fdTag=tagNew;/* only remembered after everything was processed, so a failure is retried */
+  if(!syFb())fdTag=tagNew;/* only remembered after everything was processed, so a failure is retried */
  }catch(e){fdFail++}finally{fdBusy=false}
 }
 /* poll fast while the screen is open; slow down if GitHub keeps failing */
@@ -2014,7 +2096,7 @@ function forcePlan(src,dst){
  if(Object.keys(pmap).length)["orders","ovh"].forEach(c=>M[c].forEach(o=>A(o.pl).forEach(l=>{if(pmap[l.pid])l.pid=pmap[l.pid]})));
  return{M,rows,blocked:srcOnly===0&&dstOnly>0}}
 async function syForce(dir){
- if(!SY.token||syBusy)return;
+ if(!syConn()||syBusy)return;
  syBusy=true;syMsg("Memeriksa…");
  try{
   if(!SY.gid){SY.gid=await syFind();sySave()}
@@ -2030,7 +2112,7 @@ async function syForce(dir){
   if(R)guard(M,D,R);
   await snapPut("sebelum force "+(dir==="up"?"upload":"download")+" (perangkat)",D);
   if(R0){await snapPut("sebelum force "+(dir==="up"?"upload":"download")+" (cloud)",R);
-   try{await gh("/gists/"+SY.gid,{method:"PATCH",body:JSON.stringify({files:{"backup-before-force.json":{content:JSON.stringify(R0)}}})})}catch(e){}}
+   try{if(syFb())await FB.put("backup_before_force",{at:Date.now(),n:cntD(R),chunks:FB.pack(R0)});else await gh("/gists/"+SY.gid,{method:"PATCH",body:JSON.stringify({files:{"backup-before-force.json":{content:JSON.stringify(R0)}}})})}catch(e){}}
   D=M;D.updated=Date.now();MECH.splice(0,MECH.length,...D.mechs);sortM();SPc=null;
   try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
   await syPush();draw();
@@ -2041,12 +2123,69 @@ async function syForce(dir){
 async function syOn(){
  const t=(document.getElementById("sytok").value||"").trim();if(!t){syMsg("Paste your token first.",true);return}
  SY.token=t;syMsg("Checking token…");
- try{const u=await gh("/user");SY.gid="";SY.base=0;sySave();syMsg("Connected as "+u.login+".");draw();sySync(true)}
+ try{const u=await gh("/user");SY.prov="github";SY.gid="";SY.base=0;sySave();syMsg("Connected as "+u.login+".");draw();sySync(true)}
  catch(e){SY.token="";syMsg("Could not connect: "+(e&&e.message||e),true)}
 }
-async function syDiag(){const c=document.getElementById("dgc"),t=document.getElementById("dgt");if(!SY.token){if(c)c.textContent="belum terhubung";return}
+async function syDiag(){const c=document.getElementById("dgc"),t=document.getElementById("dgt");if(!syConn()){if(c)c.textContent="belum terhubung";return}
  try{if(c)c.textContent="…";const R=await syGet();if(c)c.textContent=A(R.orders).length+A(R.ovh).length;if(t)t.textContent=R.updated?new Date(num(R.updated)).toLocaleString():"-"}catch(e){if(c)c.textContent="gagal: "+(e&&e.message||e)}}
-function syOff(){if(confirm("Disconnect this device from cloud sync? Your data stays on this device and in the cloud.")){clearTimeout(syT);SY.token="";SY.gid="";SY.base=0;SY.last=0;SY.msg="";sySave();draw()}}
+function syOff(){if(confirm("Disconnect this device from cloud sync? Your data stays on this device and in the cloud.")){clearTimeout(syT);if(syFb())SY.fb={url:"",key:"",email:"",rt:""};SY.prov="github";fbSeen=null;SY.token="";SY.gid="";SY.base=0;SY.last=0;SY.msg="";sySave();draw()}}
+/* ---------- Firebase: connect, export and restore ---------- */
+let SYP=null;
+const fbHas=()=>!!(SY.fb&&SY.fb.url);
+function fbHost(){try{return new URL(fbNorm(SY.fb.url)).host}catch(e){return SY.fb.url||""}}
+function fbMsg(t,bad){SY.fmsg=t;SY.fbad=!!bad;const e=document.getElementById("fbmsg");if(e){e.textContent=t;e.style.color=bad?"#b91c1c":"var(--mu)"}}
+async function fbConnect(sync,p){
+ p=p||"";const g=id=>((document.getElementById(p+id)||{}).value||""),say=sync?syMsg:fbMsg;
+ const url=fbNorm(g("fburl")),key=g("fbkey").trim(),email=g("fbmail").trim(),pass=g("fbpass");
+ if(!url){say("Paste the Firebase database URL first.",true);return}
+ if((key||email||pass)&&!(key&&email&&pass)){say("Fill the API key, email and password – or leave all three empty.",true);return}
+ say("Checking Firebase…");const prev=JSON.stringify(SY.fb);
+ try{
+  SY.fb={url,key,email:key?email:"",rt:""};
+  if(key)SY.fb.rt=await FB.signIn(key,email,pass);
+  await FB.get("data/updated");/* proves the URL, the sign-in and the rules; an empty database is fine */
+  if(sync){SY.prov="firebase";SY.token="";SY.gid="";SY.base=0;SY.last=0;fbSeen=null;try{localStorage.removeItem(BK)}catch(e){}}
+  sySave();say(sync?"Connected to Firebase.":"Firebase settings saved.");draw();if(sync)sySync(true)
+ }catch(e){SY.fb=JSON.parse(prev);say("Could not connect: "+(e&&e.message||e),true)}
+}
+function fbForget(){if(syFb())return;if(confirm("Remove the saved Firebase settings from this device? Exports already in Firebase stay there.")){SY.fb={url:"",key:"",email:"",rt:""};sySave();draw()}}
+const fbStamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+"-"+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds())};
+async function fbExport(){
+ if(!fbHas()||syBusy)return;syBusy=true;fbMsg("Exporting to Firebase…");
+ try{
+  const k="exp-"+fbStamp(),at=Date.now(),n=cntD(D),ch=FB.pack(D),size=ch.reduce((a,x)=>a+x.length,0);
+  await FB.patch("",{["exports/"+k]:{at,n,updated:num(D.updated),chunks:ch},["exports_meta/"+k]:{at,n,size,updated:num(D.updated)}});
+  fbMsg("Exported "+n+" orders to Firebase ("+k+").");fbExpList()
+ }catch(e){fbMsg("Export failed: "+(e&&e.message||e),true)}
+ finally{syBusy=false}
+}
+async function fbExpList(){
+ const e=document.getElementById("fbexl");if(!e||!fbHas())return;
+ try{
+  e.textContent="…";const m=(await FB.get("exports_meta"))||{},ks=Object.keys(m).sort().reverse();
+  e.innerHTML=ks.length?ks.map(k=>{const x=m[k]||{};return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid #8884;font-size:13px"><span style="flex:1;min-width:170px">${esc(new Date(num(x.at)).toLocaleString())} · ${num(x.n)} order · ${Math.max(1,Math.round(num(x.size)/1024))} KB</span><button class="btn" onclick="fbExpDl('${k}')">⬇ .json</button><button class="btn" onclick="fbExpRestore('${k}','add')">Restore (merge)</button><button class="btn" style="color:#b91c1c" onclick="fbExpRestore('${k}','full')">Replace all</button><button class="btn" style="color:#b91c1c" onclick="fbExpDel('${k}')" aria-label="Delete">✕</button></div>`}).join(""):"No exports yet."
+ }catch(err){e.textContent="Could not load exports: "+(err&&err.message||err)}
+}
+async function fbExpGet(k){const R=FB.unpack(await FB.get("exports/"+k));if(!R||!Array.isArray(R.orders))throw new Error("Export not found or damaged");return R}
+async function fbExpDl(k){try{const R=await fbExpGet(k);dl("work-orders-firebase-"+k+".json",new Blob([JSON.stringify(R,null,1)],{type:"application/json"}))}catch(e){fbMsg("Failed: "+(e&&e.message||e),true)}}
+async function fbExpDel(k){
+ if(!confirm("Delete this export from Firebase?"))return;
+ try{await FB.patch("",{["exports/"+k]:null,["exports_meta/"+k]:null});fbExpList()}catch(e){fbMsg("Failed: "+(e&&e.message||e),true)}
+}
+async function fbExpRestore(k,mode){
+ if(syBusy)return;syBusy=true;
+ try{
+  const R=await fbExpGet(k),P=norm(R),n=cntD(P);
+  if(!confirm(mode==="add"?"Merge this export ("+n+" order) into the current data? Current data stays; only what is missing is added back.":"REPLACE ALL current data with this export ("+n+" order)? Changes made after the export will be lost (an automatic backup is made first)."))return;
+  await snapPut("sebelum pulihkan (Firebase)",D);
+  const M=mode==="add"?mergeD(D,P,null,true):P;
+  D=M;MECH.splice(0,MECH.length,...D.mechs);sortM();SPc=null;D.updated=Date.now();
+  try{localStorage.setItem("wo_data",JSON.stringify(D))}catch(e){}
+  if(syConn())await syPush();
+  draw();fbMsg("Restored from Firebase ("+syT_()+"): "+cntD(D)+" order.")
+ }catch(e){fbMsg("Failed: "+(e&&e.message||e),true)}
+ finally{syBusy=false;if(tab==="sync"){const m=SY.fmsg,b=SY.fbad;draw();fbMsg(m,b)}}
+}
 function dl(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
 function jBackup(){dl("work-orders-backup-"+today()+".json",new Blob([JSON.stringify(D,null,1)],{type:"application/json"}))}
 function jRestore(inp){
@@ -2056,23 +2195,47 @@ function jRestore(inp){
   D=norm(x);MECH.splice(0,MECH.length,...D.mechs);sortM();O=blank();save();draw();syMsg("Backup restored.")}catch(err){syMsg("Restore failed: "+err.message,true)}};
  r.readAsText(f);inp.value="";
 }
+const fbHelp=sm=>`<ol style="${sm};padding-left:18px;margin:0">
+ <li>In the <b>Firebase console</b> create a project, then <b>Build → Realtime Database → Create database</b>. Copy the database URL.</li>
+ <li><b>Build → Authentication → Sign-in method</b>: enable <b>Email/Password</b>, then add one user (email + password). Use the same user on every device.</li>
+ <li><b>Project settings → General</b>: copy the <b>Web API key</b>.</li>
+ <li>In <b>Realtime Database → Rules</b> paste this and publish:<br><code style="word-break:break-all">{"rules":{"wo":{".read":"auth!=null",".write":"auth!=null"}}}</code></li>
+ <li>Fill in the form and press the button. Repeat on your other devices (and in the Front Desk app) with the same details.</li></ol>
+ <p style="${sm}">Without an API key and sign-in the app talks to the database without logging in. Only do that with open rules, which lets anyone who knows the URL read and write your data. Your password is not stored, only a sign-in token.</p>`;
+function fbForm(p){
+ const sm="font-size:13px;color:var(--mu)",v=SY.fb||{};
+ return `<label>Database URL</label><input id="${p}fburl" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://your-project-default-rtdb.firebaseio.com" value="${esc(v.url||"")}">
+ <label>Web API key <span style="${sm}">(for sign-in, recommended)</span></label><input id="${p}fbkey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza…" value="${esc(v.key||"")}">
+ <label>Email</label><input id="${p}fbmail" type="email" autocomplete="off" autocapitalize="off" value="${esc(v.email||"")}">
+ <label>Password</label><input id="${p}fbpass" type="password" autocomplete="off" placeholder="only used to sign in">`}
 function vSync(){
- const on=!!SY.token,sm="font-size:13px;color:var(--mu)";
- return `<div class="instSlot"></div><div class="card"><h2>Cloud sync (GitHub)</h2>
- <p style="${sm};margin:0 0 10px">Keeps your data the same on every phone and computer. It is stored in a <b>private Gist in your own GitHub account</b>, never in the public repository. The app keeps working offline and syncs when you are back online.</p>
- ${on?`<div class="sum"><div><span>Status</span><b class="store">Connected</b></div><div><span>Cloud copy</span><b>${SY.gid?"found":"will be created"}</b></div><div><span>Last sync</span><b>${SY.last?esc(new Date(SY.last).toLocaleString()):"-"}</b></div></div>
+ const on=syConn(),fb=syFb(),sm="font-size:13px;color:var(--mu)",sp=SYP||(fb?"firebase":"github");
+ const pt=(p,l)=>`<button class="btn ${sp===p?"p":""}" onclick="SYP='${p}';draw()">${l}</button>`;
+ return `<div class="instSlot"></div><div class="card"><h2>Cloud sync (${on?(fb?"Firebase":"GitHub"):"GitHub or Firebase"})</h2>
+ <p style="${sm};margin:0 0 10px">Keeps your data the same on every phone and computer. ${on&&fb?"It is stored in your own <b>Firebase Realtime Database</b>.":on?"It is stored in a <b>private Gist in your own GitHub account</b>, never in the public repository.":"Choose where it is stored: a <b>private Gist in your own GitHub account</b> or your own <b>Firebase Realtime Database</b>."} The app keeps working offline and syncs when you are back online.</p>
+ ${on?`<div class="sum"><div><span>Status</span><b class="store">Connected</b></div><div><span>Provider</span><b>${fb?"Firebase":"GitHub Gist"}</b></div><div><span>Cloud copy</span><b>${SY.gid?"found":"will be created"}</b></div><div><span>Last sync</span><b>${SY.last?esc(new Date(SY.last).toLocaleString()):"-"}</b></div></div>
  <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--tx);margin:10px 0"><input type="checkbox" style="width:auto" ${SY.auto?"checked":""} onchange="SY.auto=this.checked;sySave()"> Sync automatically after changes</label>
- <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" onclick="sySync(true)">⟳ Sync now</button><button class="btn" style="color:#b91c1c" onclick="syForce('up')">⬆ Force upload</button><button class="btn" style="color:#b91c1c" onclick="syForce('down')">⬇ Force download</button><button class="btn" style="color:#b91c1c" onclick="syOff()">Disconnect</button></div>`
+ <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn p" onclick="sySync(true)">⟳ Sync now</button><button class="btn" style="color:#b91c1c" onclick="syForce('up')">⬆ Force upload</button><button class="btn" style="color:#b91c1c" onclick="syForce('down')">⬇ Force download</button><button class="btn" style="color:#b91c1c" onclick="syOff()">Disconnect</button></div>
+ ${fb?"":`<p style="${sm};margin:10px 0 0">To switch to Firebase, press Disconnect first. Your data stays here and in the Gist, and the first Firebase sync merges everything safely.</p>`}`
+ :`<div style="display:flex;gap:8px;margin:0 0 10px">${pt("github","GitHub Gist")}${pt("firebase","Firebase")}</div>
+ ${sp==="firebase"?`${fbForm("")}<div style="margin:10px 0"><button class="btn p" onclick="fbConnect(true,'')">Connect to Firebase</button></div>${fbHelp(sm)}`
  :`<label>GitHub token</label><input id="sytok" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_…">
  <div style="margin:10px 0"><button class="btn p" onclick="syOn()">Connect</button></div>
  <ol style="${sm};padding-left:18px;margin:0">
  <li>On GitHub open Settings → Developer settings → Personal access tokens → <b>Tokens (classic)</b>.</li>
  <li>Generate a new token, tick only the <b>gist</b> scope, and copy it.</li>
  <li>Paste it above and press Connect. Repeat on your other devices with the same token.</li></ol>
- <p style="${sm}">The token is kept only in this browser. Do not share it.</p>`}
+ <p style="${sm}">The token is kept only in this browser. Do not share it.</p>`}`}
  <p id="symsg" style="${sm};margin:10px 0 0">${esc(SY.msg||"")}</p></div>
+ <div class="card"><h2>Export to Firebase</h2>
+ <p style="${sm};margin:0 0 10px">Saves a dated copy of this app's data file (orders, spareparts, services, staff, expenses and everything else) in your Firebase Realtime Database. Exports are separate from live sync and never overwrite it. You can download them as .json or restore them later.</p>
+ ${fbHas()?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn p" onclick="fbExport()">⬆ Export to Firebase now</button><button class="btn" onclick="fbExpList()">⟳ Refresh list</button>${fb&&on?"":`<button class="btn" style="color:#b91c1c" onclick="fbForget()">Remove Firebase settings</button>`}</div>
+ <p style="${sm};margin:0 0 6px">Database: <b>${esc(fbHost())}</b></p><div id="fbexl">…</div>`
+ :`${fbForm("x")}<div style="margin:10px 0"><button class="btn p" onclick="fbConnect(false,'x')">Save Firebase settings</button></div>
+ <details><summary style="${sm};cursor:pointer">Setup steps</summary>${fbHelp(sm)}</details>`}
+ <p id="fbmsg" style="${sm};margin:10px 0 0;${SY.fbad?"color:#b91c1c":""}">${esc(SY.fmsg||"")}</p></div>
  <div class="card"><h2>Cadangan otomatis</h2><p style="${sm};margin:0 0 6px">Dibuat otomatis sebelum gabung, unduh, force, dan pulihkan (12 terakhir, di perangkat ini). <b>Pulihkan (gabung)</b> menambahkan kembali yang hilang tanpa menghapus pekerjaan baru.</p><div id="snl">…</div></div>
- <div class="card"><h2>Diagnostic</h2><p style="${sm};margin:0 0 8px">Versi: merge-v3 · Gist: <b>${SY.gid?esc(SY.gid.slice(0,8))+"…":"-"}</b> · Order di perangkat: <b>${D.orders.length+D.ovh.length}</b> · Order di cloud: <b id="dgc">-</b> · Cloud diubah: <b id="dgt">-</b></p><button class="btn" onclick="syDiag()">Cek cloud</button></div>
+ <div class="card"><h2>Diagnostic</h2><p style="${sm};margin:0 0 8px">Versi: merge-v3 · Cloud: <b>${syFb()?"Firebase":(SY.gid?"Gist "+esc(SY.gid.slice(0,8))+"…":"-")}</b> · Order di perangkat: <b>${D.orders.length+D.ovh.length}</b> · Order di cloud: <b id="dgc">-</b> · Cloud diubah: <b id="dgt">-</b></p><button class="btn" onclick="syDiag()">Cek cloud</button></div>
  <div class="card"><h2>Backup file</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="jBackup()">⬇ Download backup (.json)</button><label class="btn" style="margin:0;font-size:15px;color:var(--tx)">⬆ Restore backup<input type="file" accept=".json,application/json" style="display:none" onchange="jRestore(this)"></label></div>
  <p style="${sm};margin:8px 0 0">Use this to move data from an older copy of the app. Excel export and import are on the History tab.</p></div>`;
 }
