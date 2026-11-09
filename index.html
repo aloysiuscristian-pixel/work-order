@@ -1459,7 +1459,7 @@ function daysBetween(a,b){return Math.max(0,Math.round((new Date(b)-new Date(a))
 function isDone(o){return !o.status||o.status==="Done"}
 /* A job cannot be moved to Done / Finish while any of its spareparts has 0 profit (owner must set the profit first) */
 function zpNames(pl){const n=[];(pl||[]).forEach(l=>{const p=part(l.pid)||l.snap;if(!p)return;if(!(num(p.profit)>0))n.push((p.sku?p.sku+" · ":"")+(p.name||"-"))});return[...new Set(n)]}
-function zpBlock(pl){const n=zpNames(pl);if(!n.length)return false;alert("Cannot set this job to Done / Finish.\n\nThese spareparts still have 0 profit:\n• "+n.join("\n• ")+"\n\nOpen the Spareparts tab and fill in the Profit first.");return true}
+function zpBlock(pl){return false;const n=zpNames(pl);if(!n.length)return false;alert("Cannot set this job to Done / Finish.\n\nThese spareparts still have 0 profit:\n• "+n.join("\n• ")+"\n\nOpen the Spareparts tab and fill in the Profit first.");return true}
 function isLate(o){return !isDone(o)&&!!o.due&&o.due<today()}
 function rd(o){return (o.done||o.date||"").slice(0,7)}
 function openO(id){EA.o="";const c=JSON.parse(JSON.stringify(D.orders.find(x=>x.id===id)));O=Object.assign(blank(),c);if(!c.status)O.status="Done";if(c.queue==null)O.queue=nextQ(c.date,c.po);O.log=O.log||[];tab="order";draw()}
