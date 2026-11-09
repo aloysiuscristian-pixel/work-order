@@ -472,7 +472,7 @@ function nav(){
  G=[
   {k:"kerja",l:"Kerja",bd:nProc?String(nProc):"",t:[["order","Work Order"],["ovh","Overhaul"],["lcr","LCR"],["proc","Process ("+nProc+")"]]},
   {k:"data",l:"Data",bd:nNew?"+"+nNew:"",t:[["services","Services"],["parts","Spareparts"+(nNew?" ("+nNew+" new)":"")],["motors","Motor Types"],["lcrp","LCR Motor"],["mechs","Mechanics"]]},
-  {k:"laporan",l:"Laporan",t:[["daily","Daily Result"],["profit","Profit Monthly"],["perf","Mechanic Monthly"],["tax","Tax & Reorder Monthly"]]},
+  {k:"laporan",l:"Laporan",t:[["daily","Daily Result"],["profit","Profit Monthly"],["perf","Mechanic Monthly"],["tax","Tax & Reorder Monthly"],["spo","Order Sparepart"+(spoOpen()?" ("+spoOpen()+")":"")]]},
   {k:"uang",l:"Keuangan",t:[["exp","Expense"],["adv","Salary"]]},
   {k:"riwayat",l:"Riwayat",bd:String(D.orders.length+D.ovh.length),t:[["hist",""]]},
   {k:"sync",l:"Sync"+(syConn()?(SY.err?" ⚠":" ✓"):""),t:[["sync",""]]}
@@ -491,7 +491,7 @@ function mini(root){(root||document).querySelectorAll(".card").forEach(c=>{const
 function mnTog(h){const c=h.parentElement,k=mnKey(h);const cl=!c.classList.contains("cl");c.classList.toggle("cl",cl);h.setAttribute("aria-expanded",String(!cl));MN[k]=cl?1:0}
 document.addEventListener("click",e=>{const h=e.target.closest&&e.target.closest(".card.mn>h2");if(h)mnTog(h)});
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches(".card.mn>h2")){e.preventDefault();mnTog(e.target)}});
-function draw(){if(tab!=="motors")NM=false;nav();const v=document.getElementById("v");v.innerHTML={order:vOrder,services:vServ,parts:vParts,perf:vPerf,ovh:vOvh,lcr:vLcr,lcrp:vLcrP,daily:vDaily,profit:vProfit,exp:vExp,adv:vAdv,tax:vTax,motors:vMotors,mechs:vMechs,proc:vProc,hist:vHist,sync:vSync}[tab]();if(tab==="order")calc();mini(v);if(tab==="sync")setTimeout(()=>{snapShow();fbExpList()},0)}
+function draw(){if(tab!=="motors")NM=false;nav();const v=document.getElementById("v");v.innerHTML={order:vOrder,services:vServ,parts:vParts,perf:vPerf,ovh:vOvh,lcr:vLcr,lcrp:vLcrP,daily:vDaily,profit:vProfit,exp:vExp,adv:vAdv,tax:vTax,spo:vSpo,motors:vMotors,mechs:vMechs,proc:vProc,hist:vHist,sync:vSync}[tab]();if(tab==="order")calc();mini(v);if(tab==="sync")setTimeout(()=>{snapShow();fbExpList()},0)}
 
 const pk=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
 /* Engine number: identifies motorcycles without a plate ("NON DS"). Auto numbers: JM82E0000001, JM82E0000002, ... */
@@ -1149,6 +1149,212 @@ function vTax(){
  ${months.map(m=>{const x=st[m]||{n:0,S:0,tax:0,pr:0};return `<tr style="border-top:1px solid var(--bd);text-align:right"><td style="text-align:left;padding:8px 6px">${mName(m)}<div style="height:6px;border-radius:3px;background:var(--ac);width:${x.tax/max*100}%;margin-top:4px;opacity:.85"></div></td><td>${x.n}</td><td>${rp(x.S)}</td><td><b>${rp(x.tax)}</b></td><td><b>${rp(x.pr)}</b></td></tr>`}).join("")}
  <tr style="border-top:2px solid var(--bd);text-align:right;font-weight:700"><td style="text-align:left;padding:8px 6px">ALL MONTHS</td><td>${D.orders.filter(isDone).length}</td><td>${rp(all/SPLIT.t)}</td><td>${rp(all)}</td><td>${rp(allPr)}</td></tr></table></div>
  <p style="color:var(--mu);font-size:12px">Tax is 2% of the service price on finished orders (status Done) and of overhaul engine jobs, Reorder cost is the part of sparepart prices (price − profit) to be spent on restocking, on the same finished jobs. Grouped by finish date.</p></div>`;
+}
+/* ---------- Order Sparepart: 2 supplier (ASTRA & FAJAR BARU). Harga = reorder cost (harga − laba), sama untuk kedua supplier.
+   Status dicatat PER SPAREPART per supplier: Order → Ready to Ship → Shipped/Finish. Yang lebih dulu Ready menang, yang lain otomatis Cancel.
+   Bila supplier tidak punya barangnya, tandai "Kosong". ---------- */
+const SUP=["ASTRA","FAJAR BARU"],SPS={Order:"Order",Ready:"Ready to Ship",Shipped:"Shipped/Finish",Cancel:"Cancel",Empty:"Kosong"},SPK=Object.keys(SPS);
+let SPO=(()=>{const d={q:"",note:"",lines:[],batches:[],to:"both",f:"Aktif",msg:"",map:{},sg:{m:3,c:1,only:true},sgMsg:""};
+ try{const s=JSON.parse(localStorage.getItem("wo_spo")||"null");if(s&&typeof s==="object"){
+  const ln=l=>({id:nid(l&&l.id),pid:cid(l&&l.pid),sku:T(l&&l.sku),name:T(l&&l.name),qty:Math.max(1,Math.floor(num(l&&l.qty))||1),cost:(l&&l.cost!=null&&l.cost!=="")?Math.max(0,num(l.cost)):null}),
+  st=x=>SPK.includes(x)?x:"",
+  bl=l=>{const b=ln(l);b.fc=l&&l.fc!=null?num(l.fc):null;b.by=l&&(l.by===0||l.by===1)?l.by:null;b.s=[st(l&&l.s&&l.s[0]),st(l&&l.s&&l.s[1])];return b};
+  d.note=T(s.note);d.lines=A(s.lines).map(ln);d.to=["both","0","1"].includes(s.to)?s.to:"both";d.f=s.f==="Selesai"?"Selesai":"Aktif";
+  if(s.map&&typeof s.map==="object")for(const k in s.map){const v=cid(s.map[k]);if(v)d.map[T(k)]=v}
+  {const g=s.sg&&typeof s.sg==="object"?s.sg:{};d.sg={m:[1,2,3,4,6].includes(num(g.m))?num(g.m):3,c:[0.5,1,1.5,2].includes(num(g.c))?num(g.c):1,only:g.only!==false}}
+  d.batches=A(s.batches).map(b=>({id:nid(b&&b.id),date:T(b&&b.date).slice(0,10),note:T(b&&b.note),lines:A(b&&b.lines).map(bl)}));
+  /* konversi format lama (1 order per supplier) */
+  const g={};A(s.orders).filter(o=>o&&o.sup!==undefined).forEach(o=>{const k=cid(o.rid)||nid(o.id);(g[k]=g[k]||[]).push(o)});
+  Object.values(g).forEach(os=>{const f=os[0],b={id:nid(f.id),date:T(f.date).slice(0,10),note:T(f.note),lines:A(f.lines).map(l=>{const x=bl(l);x.s=["",""];return x})};
+   os.forEach(o=>{const i=o.sup===1?1:0,x=SPK.includes(o.status)?o.status:"Order";A(o.lines).forEach((_,j)=>{if(b.lines[j])b.lines[j].s[i]=x})});d.batches.push(b)});
+ }}catch(e){}
+ return d})();
+const spoSave=()=>{try{localStorage.setItem("wo_spo",JSON.stringify({note:SPO.note,lines:SPO.lines,batches:SPO.batches,to:SPO.to,f:SPO.f,map:SPO.map,sg:SPO.sg}))}catch(e){}};
+/* harga selalu = reorder cost (harga − laba) dari data Spareparts; part di luar daftar memakai harga isian sendiri; setelah Shipped harga dibekukan */
+const lcost=l=>{if(l.fc!=null)return l.fc;const p=l.pid&&part(l.pid);return p?Math.max(0,num(p.price)-num(p.profit)):num(l.cost)};
+const lname=l=>{const p=l.pid&&part(l.pid);return p?p.sku:(l.sku||l.name||"-")};
+const lfull=l=>{const p=l.pid&&part(l.pid),sk=p?p.sku:l.sku,nm=p?p.name:l.name;return (sk?sk+" - ":"")+nm};
+const lAlive=l=>l.s.some(x=>x==="Order"||x==="Ready"||x==="Shipped"),lDone=l=>l.s.includes("Shipped")||!lAlive(l);
+const bDone=b=>b.lines.length>0&&b.lines.every(lDone);
+function spoOpen(){try{return SPO.batches.filter(b=>!bDone(b)).length}catch(e){return 0}}
+const bTot=b=>{const L=b.lines.filter(lAlive);return{q:L.reduce((a,l)=>a+l.qty,0),c:L.reduce((a,l)=>a+l.qty*lcost(l),0)}};
+const stCol=s=>({Ready:"var(--yl)",Shipped:"var(--ok)",Cancel:"var(--mu)",Empty:"var(--mu)"}[s]||"var(--tx)");
+/* ----- draft ----- */
+const spoTot=()=>({q:SPO.lines.reduce((a,l)=>a+l.qty,0),c:SPO.lines.reduce((a,l)=>a+l.qty*lcost(l),0)});
+function spoLines(){
+ if(!SPO.lines.length)return `<div class="ro">Belum ada sparepart. Cari dan tambahkan sparepart di atas.</div>`;
+ return `<div class="sc"><table style="width:100%;border-collapse:collapse;min-width:520px"><tr style="color:var(--mu);font-size:12px;text-align:right"><th style="text-align:left;padding:6px">Sparepart</th><th>Stok</th><th>Jumlah</th><th>Reorder cost/pcs</th><th>Total</th><th></th></tr>
+ ${SPO.lines.map(l=>{const p=l.pid&&part(l.pid),manual=!l.pid;return `<tr style="border-top:1px solid var(--bd);text-align:right"><td style="text-align:left;padding:8px 6px">${manual?`<input value="${esc(l.name)}" placeholder="Nama sparepart" autocomplete="off" oninput="spoSet('${l.id}','name',this.value)">`:`<b>${esc(p?p.sku:l.sku)}</b><div style="color:var(--mu);font-size:12px">${esc(p?p.name:l.name)}${p?"":" (part dihapus)"}</div>`}</td>
+ <td>${p?num(p.stock):"-"}</td><td><input type="number" min="1" inputmode="numeric" style="width:70px;text-align:right" value="${l.qty}" oninput="spoSet('${l.id}','qty',this.value)"></td>
+ <td>${manual||!p?`<input type="number" min="0" inputmode="numeric" style="width:110px;text-align:right" value="${l.cost==null?"":l.cost}" placeholder="harga" oninput="spoSet('${l.id}','cost',this.value)">`:rp(lcost(l))}</td>
+ <td><b id="spo-t-${l.id}">${rp(l.qty*lcost(l))}</b></td><td><button class="btn x" onclick="spoRm('${l.id}')" aria-label="Hapus">✕</button></td></tr>`}).join("")}
+ <tr style="border-top:2px solid var(--bd);text-align:right;font-weight:700"><td style="text-align:left;padding:8px 6px">TOTAL</td><td></td><td id="spo-q2">${spoTot().q}</td><td></td><td id="spo-c2">${rp(spoTot().c)}</td><td></td></tr></table></div>`;
+}
+function spoSum(){const t=spoTot(),g=(i,x)=>{const e=document.getElementById(i);if(e)e.textContent=x};g("spo-q2",t.q);g("spo-c2",rp(t.c))}
+function spoDD(){
+ const q=SPO.q.trim().toLowerCase(),e=document.getElementById("spodd");if(!e)return;
+ if(!q){e.innerHTML="";return}
+ const w=q.split(/\s+/),L=srtP().filter(p=>!p.fd&&w.every(x=>ph(p).includes(x))).slice(0,8);
+ e.innerHTML=`<div class="cbl" style="position:static;margin-top:4px">${L.length?L.map(p=>`<div onclick="spoAdd('${p.id}')"><b>${esc(p.sku)}</b> · ${esc(p.name)}<span style="float:right;color:var(--mu)">${rp(Math.max(0,num(p.price)-num(p.profit)))}</span></div>`).join(""):`<div class="none">Tidak ditemukan</div>`}</div>`;
+}
+function spoQ(v){SPO.q=v;spoDD()}
+function spoAdd(pid){const p=part(pid);if(!p)return;const x=SPO.lines.find(l=>l.pid===pid);
+ if(x)x.qty++;else SPO.lines.push({id:uid(),pid:p.id,sku:p.sku,name:p.name,qty:1,cost:null});
+ SPO.q="";const i=document.getElementById("spoq");if(i){i.value="";i.focus()}spoDD();spoSave();spoRefresh()}
+function spoManual(){SPO.lines.push({id:uid(),pid:"",sku:"",name:"",qty:1,cost:null});spoSave();spoRefresh()}
+function spoRefresh(){const e=document.getElementById("spol");if(e)e.innerHTML=spoLines()}
+function spoSet(id,k,v){const l=SPO.lines.find(x=>x.id===id);if(!l)return;
+ if(k==="qty")l.qty=Math.max(1,Math.floor(num(v))||1);else if(k==="cost")l.cost=v===""?null:Math.max(0,num(v));else l.name=v;
+ spoSave();const e=document.getElementById("spo-t-"+id);if(e)e.textContent=rp(l.qty*lcost(l));spoSum()}
+function spoRm(id){SPO.lines=SPO.lines.filter(l=>l.id!==id);spoSave();spoRefresh()}
+function spoClear(){if(!SPO.lines.length||confirm("Kosongkan daftar yang sedang disusun?")){SPO.lines=[];SPO.note="";spoSave();draw()}}
+function spoSend(){
+ const R=SPO.lines.filter(l=>l.pid||T(l.name).trim());
+ if(!R.length){alert("Daftar masih kosong.");return}
+ if(R.some(l=>(!l.pid||!part(l.pid))&&!(num(l.cost)>0))&&!confirm("Ada part di luar daftar tanpa harga. Lanjutkan?"))return;
+ const both=SPO.to==="both",s=both?["Order","Order"]:(SPO.to==="0"?["Order",""]:["","Order"]);
+ SPO.batches.unshift({id:uid(),date:today(),note:SPO.note,lines:R.map(l=>({id:uid(),pid:l.pid,sku:l.sku,name:l.name,qty:l.qty,cost:l.cost,fc:null,by:null,s:s.slice()}))});
+ SPO.lines=[];SPO.note="";SPO.f="Aktif";SPO.msg=both?"Order dikirim ke "+SUP[0]+" dan "+SUP[1]+". Per sparepart, yang lebih dulu Ready to Ship menang dan yang lain otomatis di-Cancel.":"Order dikirim ke "+SUP[num(SPO.to)]+".";spoSave();draw()}
+/* ----- status per sparepart per supplier ----- */
+/* ubah status supplier i pada sparepart l; return false bila dibatalkan */
+function spoApply(l,i,st,quiet){
+ const o=1-i,cur=l.s[i],ow=l.s[o];
+ if(st==="Ready"||st==="Shipped"){
+  if((ow==="Ready"||ow==="Shipped")&&cur!=="Ready"&&cur!=="Shipped"){
+   if(quiet)return false;
+   if(!confirm(SUP[o]+" sudah lebih dulu siap kirim untuk "+lname(l)+", jadi "+SUP[i]+" seharusnya di-Cancel. Tetap lanjutkan?"))return false}
+  l.s[i]=st;
+  if(ow==="Order"){l.s[o]="Cancel";l.by=i}
+  if(st==="Shipped"&&l.fc==null)l.fc=lcost(l);
+ }else{
+  l.s[i]=st;
+  if(l.by===i&&l.s[o]==="Cancel"){l.s[o]="Order";l.by=null}/* pemenang mundur: supplier lain kembali ikut */
+ }
+ if(!l.s.includes("Shipped"))l.fc=null;
+ return true}
+function spoLS(bid,lid,i,v){
+ const b=SPO.batches.find(x=>x.id===bid),l=b&&b.lines.find(x=>x.id===lid);if(!l||!SPK.includes(v))return;
+ SPO.msg="";const o=1-i;
+ if(!spoApply(l,i,v)){spoRedraw();return}
+ if((v==="Ready"||v==="Shipped")&&l.by===i&&l.s[o]==="Cancel")SPO.msg=lname(l)+": "+SUP[i]+" menang (lebih dulu siap), "+SUP[o]+" otomatis di-Cancel.";
+ else if(v==="Empty")SPO.msg=lname(l)+" kosong di "+SUP[i]+(lAlive(l)?" → hanya bisa dari "+SUP[o]+".":". Belum ada supplier yang bisa memenuhi sparepart ini!");
+ spoSave();spoRedraw()}
+function spoAll(bid,i){
+ const b=SPO.batches.find(x=>x.id===bid);if(!b)return;let n=0,sk=0;
+ b.lines.forEach(l=>{if(l.s[i]==="Order"){if(spoApply(l,i,"Ready",true))n++;else sk++}});
+ SPO.msg=n?n+" sparepart dari "+SUP[i]+" → Ready to Ship; yang sama di "+SUP[1-i]+" otomatis di-Cancel."+(sk?" "+sk+" dilewati (supplier lain sudah lebih dulu).":""):"Tidak ada sparepart berstatus Order di "+SUP[i]+".";
+ spoSave();spoRedraw()}
+function spoDel(id){if(!confirm("Hapus order ini beserta semua statusnya?"))return;SPO.batches=SPO.batches.filter(b=>b.id!==id);spoSave();spoRedraw()}
+function spoF(f){SPO.f=f;SPO.msg="";spoSave();spoRedraw()}
+function soSet(bid,lid,k,v){const b=SPO.batches.find(x=>x.id===bid),l=b&&b.lines.find(x=>x.id===lid);if(!l||l.fc!=null)return;
+ if(k==="qty")l.qty=Math.max(1,Math.floor(num(v))||1);else l.cost=Math.max(0,num(v));spoSave();
+ const g=(i,x)=>{const e=document.getElementById(i);if(e)e.textContent=x};g("sol-"+lid,rp(l.qty*lcost(l)));const t=bTot(b);g("bq-"+bid,t.q+" pcs");g("bt-"+bid,rp(t.c));const s=document.getElementById("sosum");if(s)s.innerHTML=spoSumH()}
+function spoCopy(bid,i){const b=SPO.batches.find(x=>x.id===bid);if(!b)return;
+ const L=b.lines.filter(l=>l.s[i]==="Order"||l.s[i]==="Ready");if(!L.length){alert("Tidak ada sparepart berstatus Order/Ready untuk "+SUP[i]+".");return}
+ const txt="Order sparepart "+b.date+" - "+SUP[i]+(b.note?" ("+b.note+")":"")+"\n"+L.map(l=>lfull(l)+" x"+l.qty).join("\n")+"\nTotal: "+L.reduce((a,l)=>a+l.qty,0)+" pcs",ok=()=>alert("Daftar untuk "+SUP[i]+" disalin.");
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(ok,()=>prompt("Salin daftar:",txt));else prompt("Salin daftar:",txt)}
+/* ringkasan per supplier per status */
+function spoSumH(){
+ const all=SPO.batches.flatMap(b=>b.lines),cell=(i,s)=>{const L=all.filter(l=>l.s[i]===s);return L.length?`<b>${L.length}</b><div style="font-size:11px;color:var(--mu)">${rp(L.reduce((a,l)=>a+l.qty*lcost(l),0))}</div>`:`<span style="color:var(--mu)">0</span>`},
+ dead=all.filter(l=>l.s.some(x=>x)&&!lAlive(l)).length;
+ return `<div class="sc"><table style="width:100%;border-collapse:collapse;text-align:center"><tr style="color:var(--mu);font-size:12px"><th style="text-align:left;padding:6px">Supplier</th><th>Order</th><th>Ready to Ship</th><th>Shipped/Finish</th><th>Cancel</th><th>Kosong</th></tr>
+ ${[0,1].map(i=>`<tr style="border-top:1px solid var(--bd)"><td style="text-align:left;padding:8px 6px"><b>${SUP[i]}</b></td>${["Order","Ready","Shipped","Cancel","Empty"].map(s=>`<td style="padding:4px">${cell(i,s)}</td>`).join("")}</tr>`).join("")}</table></div>
+ <p style="font-size:12px;margin:8px 0 0;color:${dead?"var(--ac)":"var(--mu)"}">${dead?"⚠ "+dead+" sparepart belum bisa dipenuhi kedua supplier.":"Angka = jumlah sparepart, di bawahnya total reorder cost."}</p>`;
+}
+function spoBatch(b){
+ const t=bTot(b),sent=i=>b.lines.some(l=>l.s[i]!==""),done=bDone(b);
+ const row=l=>{const p=l.pid&&part(l.pid),ed=l.fc==null,manual=!p,
+  cs=i=>l.s[i]===""?`<td style="color:var(--mu)">—</td>`:`<td><select style="width:auto;min-width:118px;font-weight:600;border-color:${stCol(l.s[i])};color:${stCol(l.s[i])}" ${l.s[i]==="Cancel"&&l.by===1-i?`title="Terlambat: ${esc(SUP[1-i])} lebih dulu siap kirim"`:""} onchange="spoLS('${b.id}','${l.id}',${i},this.value)">${SPK.map(k=>`<option value="${k}" ${l.s[i]===k?"selected":""}>${SPS[k]}</option>`).join("")}</select></td>`;
+  return `<tr style="border-top:1px solid var(--bd);text-align:right;${lAlive(l)?"":"opacity:.6"}"><td style="text-align:left;padding:6px">${p||l.sku?`<b>${esc(p?p.sku:l.sku)}</b><div style="color:var(--mu);font-size:12px">${esc(p?p.name:l.name)}</div>`:esc(l.name)}</td>
+  <td>${ed?`<input type="number" min="1" inputmode="numeric" style="width:60px;text-align:right" value="${l.qty}" oninput="soSet('${b.id}','${l.id}','qty',this.value)">`:l.qty}</td>
+  <td>${manual&&ed?`<input type="number" min="0" inputmode="numeric" style="width:90px;text-align:right" value="${num(l.cost)}" oninput="soSet('${b.id}','${l.id}','cost',this.value)">`:rp(lcost(l))}</td><td id="sol-${l.id}">${rp(l.qty*lcost(l))}</td>${cs(0)}${cs(1)}</tr>`};
+ const pay=i=>{const L=b.lines.filter(l=>l.s[i]==="Ready"||l.s[i]==="Shipped");return L.length?`<div>${SUP[i]}: <b>${L.length}</b> sparepart · <b>${rp(L.reduce((a,l)=>a+l.qty*lcost(l),0))}</b></div>`:""};
+ return `<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline"><div><b style="font-size:16px">Order ${esc(b.date)}</b>${b.note?` <span style="color:var(--mu)">· ${esc(b.note)}</span>`:""} ${done?`<span class="tdy">Selesai</span>`:""}</div><span style="color:var(--mu);font-size:12px">${[0,1].filter(sent).map(i=>SUP[i]).join(" & ")}</span></div>
+ <div class="sc" style="margin-top:8px"><table style="width:100%;border-collapse:collapse;min-width:${sent(0)&&sent(1)?720:600}px"><tr style="color:var(--mu);font-size:12px;text-align:right"><th style="text-align:left;padding:4px 6px">Sparepart</th><th>Jml</th><th>Reorder cost/pcs</th><th>Total</th><th>${SUP[0]}</th><th>${SUP[1]}</th></tr>${b.lines.map(row).join("")}
+ <tr style="border-top:2px solid var(--bd);text-align:right;font-weight:700"><td style="text-align:left;padding:6px">TOTAL <span id="bq-${b.id}" style="color:var(--mu);font-weight:400">${t.q} pcs</span></td><td colspan="2"></td><td id="bt-${b.id}">${rp(t.c)}</td><td colspan="2"></td></tr></table></div>
+ <div style="font-size:13px;margin-top:8px">${pay(0)}${pay(1)}</div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">${[0,1].filter(sent).map(i=>b.lines.some(l=>l.s[i]==="Order")?`<button class="btn p" onclick="spoAll('${b.id}',${i})">✓ Semua Ready · ${SUP[i]}</button>`:"").join("")}${[0,1].filter(sent).map(i=>`<button class="btn" onclick="spoCopy('${b.id}',${i})">📋 Salin ${SUP[i]}</button>`).join("")}<button class="btn x" style="padding:8px 12px" onclick="spoDel('${b.id}')" aria-label="Hapus order">🗑</button></div></div>`;
+}
+function spoO(){
+ const act=SPO.batches.filter(b=>!bDone(b)),fin=SPO.batches.filter(bDone),L=SPO.f==="Selesai"?fin:act;
+ return `<div class="card sum"><h2>Status per supplier</h2><div id="sosum">${spoSumH()}</div></div>
+ <div style="display:flex;gap:6px;margin-bottom:10px">${[["Aktif","Aktif ("+act.length+")"],["Selesai","Selesai ("+fin.length+")"]].map(([k,l])=>`<button class="btn ${SPO.f===k?"p":""}" style="flex:1" onclick="spoF('${k}')">${l}</button>`).join("")}</div>
+ ${SPO.msg?`<div class="card" style="border:2px solid var(--ac)">${esc(SPO.msg)}</div>`:""}
+ ${L.length?L.map(spoBatch).join(""):`<div class="card"><div class="ro">${SPO.f==="Selesai"?"Belum ada order yang selesai.":"Tidak ada order aktif. Buat order baru di bawah."}</div></div>`}
+ ${L.length?`<div style="text-align:right;margin-bottom:12px"><button class="btn" onclick="spoExport()">⬇ Export ke Excel</button></div>`:""}`;
+}
+function spoRedraw(){const e=document.getElementById("spoo");if(e)e.innerHTML=spoO();nav()}
+async function spoExport(){const B=SPO.f==="Selesai"?SPO.batches.filter(bDone):SPO.batches.filter(b=>!bDone(b));if(!B.length){alert("Tidak ada order untuk diekspor.");return}
+ try{await loadX()}catch(e){alert("Library Excel gagal dimuat. Periksa koneksi internet.");return}
+ const rows=B.flatMap(b=>b.lines.map(l=>{const p=l.pid&&part(l.pid);return{Tanggal:b.date,Catatan:b.note,SKU:p?p.sku:l.sku,Sparepart:p?p.name:l.name,Jumlah:l.qty,'Reorder cost/pcs':lcost(l),Total:l.qty*lcost(l),[SUP[0]]:l.s[0]?SPS[l.s[0]]:'',[SUP[1]]:l.s[1]?SPS[l.s[1]]:''}}));
+ const tt=B.reduce((a,b)=>{const t=bTot(b);return{q:a.q+t.q,c:a.c+t.c}},{q:0,c:0});
+ rows.push({Tanggal:'TOTAL (tanpa yang kosong/cancel)',Catatan:'',SKU:'',Sparepart:'',Jumlah:tt.q,'Reorder cost/pcs':'',Total:tt.c,[SUP[0]]:'',[SUP[1]]:''});
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Order');const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
+ const u=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})),a=document.createElement('a');a.href=u;a.download='order-sparepart-'+today()+'.xlsx';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)}
+/* ---------- Saran order: kelipatan 5, dari pemakaian sparepart per bulan di PKB + catatan "Out of stock" yang masih terbuka ---------- */
+const sgNorm=s=>T(s).toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+const sgFmt=x=>(Math.round(x*10)/10).toString().replace(".",",");
+function sgItems(){/* pecah catatan stok kosong (teks bebas) jadi item: "Kampas rem depan, Rantai x2" */
+ const r=[];D.notes.filter(n=>!n.done&&/out of stock/i.test(n.why||"")).forEach(n=>{
+  T(n.text).split(/[,;\n+&]|\bdan\b/i).forEach(raw=>{let s=raw.trim();if(!s)return;let q=1,m;
+   if((m=s.match(/\bx\s*(\d+)\b|\b(\d+)\s*x\b|\((\d+)\)/i))){q=num(m[1]||m[2]||m[3])||1;s=s.replace(m[0]," ")}
+   else if((m=s.match(/^(\d+)\s+(?=[^\d\s])/))){q=num(m[1])||1;s=s.slice(m[0].length)}
+   const k=sgNorm(s);if(k)r.push({k,raw:raw.trim(),q:Math.max(1,Math.floor(q)),plate:n.plate,date:n.date})})});
+ return r}
+function sgCand(k,loose){
+ const ws=k.split(" ").filter(w=>w.length>=2),P=D.parts.filter(p=>!p.fd);if(!ws.length)return[];
+ const ex=P.filter(p=>sgNorm(p.sku).replace(/ /g,"")===k.replace(/ /g,""));if(ex.length===1)return ex;
+ const st=P.filter(p=>ws.every(w=>ph(p).includes(w)));if(st.length||!loose)return st;
+ const w3=ws.filter(w=>w.length>=3);return w3.length?P.filter(p=>w3.some(w=>ph(p).includes(w))).slice(0,15):[]}
+function sgResolve(){const got={},un=[];
+ sgItems().forEach(it=>{let pid=SPO.map[it.k];if(pid==="-")return;if(pid&&!part(pid))pid="";
+  if(!pid){const c=sgCand(it.k,false);if(c.length===1)pid=c[0].id}
+  if(pid)got[pid]=(got[pid]||0)+it.q;else un.push(it)});
+ return{got,un}}
+function sgCalc(){
+ const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);d.setDate(d.getDate()-SPO.sg.m*30);const cut=d.toISOString().slice(0,10),sold={};
+ const add=e=>{if(String(e.done||e.date||"").slice(0,10)<cut)return;(e.pl||[]).forEach(l=>{if(isBx(l)||!l.pid)return;sold[l.pid]=(sold[l.pid]||0)+num(l.qty)})};
+ D.orders.filter(isDone).forEach(add);D.ovh.filter(isDone).forEach(add);
+ const {got,un}=sgResolve();
+ let rows=D.parts.filter(p=>!p.fd).map(p=>{const s=sold[p.id]||0,avg=s/SPO.sg.m,nt=got[p.id]||0,stock=num(p.stock),raw=avg*SPO.sg.c+nt-stock,sug=raw>1e-9?Math.ceil(raw/5-1e-9)*5:0;
+  return{p,s,avg,nt,stock,sug,cost:lcost({pid:p.id})}});
+ rows=rows.filter(r=>SPO.sg.only?r.sug>0:(r.sug>0||r.s>0||r.nt>0)).sort((a,b)=>(b.nt>0)-(a.nt>0)||b.sug-a.sug||COL.compare(a.p.sku,b.p.sku));
+ return{rows,un}}
+function sgHtml(){
+ const {rows,un}=sgCalc(),R=rows.filter(r=>r.sug>0),tq=R.reduce((a,r)=>a+r.sug,0),tc=R.reduce((a,r)=>a+r.sug*r.cost,0),g={};
+ un.forEach(it=>{const x=g[it.k]=g[it.k]||{k:it.k,raw:it.raw,q:0,n:[]};x.q+=it.q;const w=((it.plate||"")+" "+(it.date||"")).trim();if(w&&!x.n.includes(w))x.n.push(w)});
+ const U=Object.values(g),sel=(k,v,L)=>`<select onchange="sgP('${k}',this.value)">${L.map(([a,b])=>`<option value="${a}" ${String(a)===String(v)?"selected":""}>${b}</option>`).join("")}</select>`;
+ return `<div class="card"><h2>💡 Saran Order (kelipatan 5)</h2>
+ <div class="g" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"><div><label>Hitung rata-rata keluar dari</label>${sel("m",SPO.sg.m,[[1,"1 bulan terakhir"],[2,"2 bulan terakhir"],[3,"3 bulan terakhir"],[4,"4 bulan terakhir"],[6,"6 bulan terakhir"]])}</div>
+ <div><label>Stok yang diinginkan</label>${sel("c",SPO.sg.c,[[0.5,"½ bulan pemakaian"],[1,"1 bulan pemakaian"],[1.5,"1½ bulan pemakaian"],[2,"2 bulan pemakaian"]])}</div></div>
+ <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:var(--tx)"><input type="checkbox" style="width:auto" ${SPO.sg.only?"checked":""} onchange="sgP('only',this.checked)">Hanya tampilkan yang perlu dipesan</label>
+ ${U.length?`<div style="border:2px solid var(--ac);border-radius:8px;padding:8px 10px;margin-top:10px"><b style="color:var(--ac)">Catatan stok kosong yang belum cocok (${U.length})</b><div style="color:var(--mu);font-size:12px;margin:2px 0 6px">Pilih sparepart yang dimaksud. Pilihan diingat untuk catatan berikutnya yang sama.</div>
+ ${U.map(x=>`<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:8px;align-items:center;margin-bottom:6px"><div><b>${esc(x.raw)}</b>${x.q>1?` ×${x.q}`:""}<div style="color:var(--mu);font-size:11px">${esc(x.n.slice(0,3).join(" · "))}</div></div>
+ <select onchange="sgMap('${esc(x.k)}',this.value)"><option value="">— pilih sparepart —</option>${sgCand(x.k,true).map(p=>`<option value="${p.id}">${esc(p.sku)} · ${esc(p.name)}</option>`).join("")}<option value="-">✕ Abaikan (bukan sparepart)</option></select></div>`).join("")}</div>`:""}
+ <div class="sum" style="margin-top:10px"><div><span>Sparepart disarankan</span><b>${R.length}</b></div><div><span>Total saran (pcs)</span><b>${tq}</b></div><div class="b"><span>Perkiraan biaya (reorder cost)</span><span>${rp(tc)}</span></div></div>
+ ${SPO.sgMsg?`<p style="color:var(--ok);font-size:13px;margin:8px 0 0">${esc(SPO.sgMsg)}</p>`:""}
+ ${rows.length?`<div style="text-align:right;margin:8px 0"><button class="btn p" onclick="sgAddAll()" ${R.length?"":"disabled"}>＋ Tambah semua saran ke daftar order</button></div><div class="sc"><table style="width:100%;border-collapse:collapse;min-width:640px"><tr style="color:var(--mu);font-size:12px;text-align:right"><th style="text-align:left;padding:6px">Sparepart</th><th>Keluar/bln</th><th>Stok</th><th>Cat. kosong</th><th>Saran</th><th>Biaya</th><th></th></tr>
+ ${rows.map(r=>`<tr style="border-top:1px solid var(--bd);text-align:right"><td style="text-align:left;padding:8px 6px"><b>${esc(r.p.sku)}</b><div style="color:var(--mu);font-size:12px">${esc(r.p.name)}</div><div style="color:var(--mu);font-size:11px">rata² ${sgFmt(r.avg)}/bln × ${sgFmt(SPO.sg.c)}${r.nt?` + ${r.nt} catatan kosong`:""} − stok ${r.stock}</div></td>
+ <td>${sgFmt(r.avg)}</td><td style="${r.stock<=0?"color:var(--ac);font-weight:700":""}">${r.stock}</td><td>${r.nt||"-"}</td><td><b style="font-size:16px">${r.sug||"-"}</b></td><td>${r.sug?rp(r.sug*r.cost):"-"}</td><td>${r.sug?`<button class="btn" onclick="sgAdd('${r.p.id}')">＋</button>`:""}</td></tr>`).join("")}</table></div>`:`<div class="ro" style="margin-top:8px">Tidak ada sparepart yang perlu dipesan dengan pengaturan ini.</div>`}
+ <p style="color:var(--mu);font-size:12px;margin:10px 0 0">Saran = (rata-rata keluar per bulan × stok yang diinginkan) + catatan "Out of stock" di PKB yang belum selesai − stok sekarang, dibulatkan <b>ke atas kelipatan 5</b>. Keluar dihitung dari PKB &amp; overhaul berstatus Done (sparepart "Beli" tidak ikut). Catatan "Out of stock" yang sudah ditandai Done tidak dihitung lagi.</p></div>`;
+}
+function sgRefresh(){const e=document.getElementById("spos");if(e)e.innerHTML=sgHtml()}
+function sgP(k,v){if(k==="only")SPO.sg.only=!!v;else SPO.sg[k]=num(v);SPO.sgMsg="";spoSave();sgRefresh()}
+function sgMap(k,v){if(!v)return;SPO.map[k]=cid(v)||"-";SPO.sgMsg="";spoSave();sgRefresh()}
+function sgPut(r){const x=SPO.lines.find(l=>l.pid===r.p.id);if(x)x.qty=r.sug;else SPO.lines.push({id:uid(),pid:r.p.id,sku:r.p.sku,name:r.p.name,qty:r.sug,cost:null})}
+function sgAdd(pid){const r=sgCalc().rows.find(x=>x.p.id===pid);if(!r||!r.sug)return;sgPut(r);SPO.sgMsg=r.p.sku+" × "+r.sug+" ditambahkan ke daftar order di bawah.";spoSave();spoRefresh();sgRefresh()}
+function sgAddAll(){const R=sgCalc().rows.filter(r=>r.sug>0);if(!R.length)return;R.forEach(sgPut);SPO.sgMsg=R.length+" sparepart ditambahkan ke daftar order di bawah. Periksa lalu tekan Buat Order.";spoSave();spoRefresh();sgRefresh()}
+function vSpo(){
+ return `<div data-nomini><div id="spoo">${spoO()}</div>
+ <div id="spos">${sgHtml()}</div>
+ <div class="card"><h2>Buat Order Baru</h2>
+ <label>Tambah sparepart (SKU / nama)</label><input id="spoq" type="search" autocomplete="off" placeholder="Ketik untuk mencari…" value="${esc(SPO.q)}" oninput="spoQ(this.value)"><div id="spodd"></div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0"><button class="btn" onclick="spoManual()">＋ Part di luar daftar</button><button class="btn" onclick="spoClear()">🗑 Kosongkan</button></div>
+ <div id="spol">${spoLines()}</div>
+ <div class="g" style="margin-top:10px"><div><label>Catatan (opsional)</label><input value="${esc(SPO.note)}" autocomplete="off" oninput="SPO.note=this.value;spoSave()"></div>
+ <div><label>Kirim ke</label><select onchange="SPO.to=this.value;spoSave()"><option value="both" ${SPO.to==="both"?"selected":""}>${SUP[0]} &amp; ${SUP[1]} (siapa cepat menang)</option><option value="0" ${SPO.to==="0"?"selected":""}>${SUP[0]} saja</option><option value="1" ${SPO.to==="1"?"selected":""}>${SUP[1]} saja</option></select></div></div>
+ <div style="margin-top:10px"><button class="btn p" style="width:100%" onclick="spoSend()">📤 Buat Order</button></div>
+ <p style="color:var(--mu);font-size:12px;margin:10px 0 0">Harga selalu mengikuti <b>reorder cost</b> (harga − laba di tab Spareparts) dan sama untuk kedua supplier; setelah Shipped/Finish harga dibekukan. Status diatur <b>per sparepart</b> untuk tiap supplier. Saat salah satu supplier ditandai <b>Ready to Ship</b>, status Order di supplier lain untuk sparepart itu otomatis jadi <b>Cancel</b>. Bila supplier tidak punya barangnya, pilih <b>Kosong</b>. Data tersimpan di perangkat ini dan tidak ikut Sync.</p></div></div>`;
 }
 const IO=()=>`<div class='card'><h2>Excel</h2><div style='display:flex;gap:8px;flex-wrap:wrap'><button class='btn p' onclick='xExport()'>⬇ Export to Excel</button><label class='btn' style='margin:0;font-size:15px;color:var(--tx)'>⬆ Import from Excel<input type='file' accept='.xlsx,.xls' style='display:none' onchange='xImport(this)'></label></div><p id='xmsg' style='color:var(--mu);font-size:12px;margin:8px 0 0'>Export has all data plus a summary and monthly report. Import replaces all current services, spareparts and orders, so export first as a backup.</p></div>`;
 const xm=t=>{const e=document.getElementById('xmsg');if(e)e.textContent=t};
