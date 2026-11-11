@@ -1489,7 +1489,7 @@ const lcrVDup=(vn,id)=>!!vn&&D.lcr.some(e=>e.id!==id&&e.vno===vn);
 function lcrBlank(){return{id:"",date:"",done:"",plate:"",motor:"",km:"",eng:"",frame:"",kind:"T",status:"Working",mech:"",price:"",mpay:"",cost:"",vno:"",vamt:"",vstat:"Waiting",cust:"",phone:""}}
 let LF=lcrBlank(),LKF="",LVF="";
 function lcrFill(){const t=D.lcrTypes.find(x=>x.name===LF.motor);if(!t)return;const r=LF.kind==="R";LF.price=(r?t.rp:t.tp)||"";LF.mpay=(r?t.rm:t.tm)||"";LF.cost=t.c||"";LF.vamt=t.v||""}
-function lcrKind(k){if(LF.id)return;LF.kind=k;LF.status=lcrSts(k)[0];lcrFill();draw()}
+function lcrKind(k){if(LF.kind===k)return;LF.kind=k;if(!lcrSts(k).includes(LF.status)){LF.status=lcrSts(k)[0];if(LF.status!=="Done")LF.done=""}lcrFill();draw()}
 function lcrPickM(v){LF.motor=v;lcrFill();draw()}
 function lcrSumHTML(){const p=num(LF.price),m=num(LF.mpay),c=num(LF.cost),v=num(LF.vamt);
  return `<div><span>Price</span><b>${rp(p)}</b></div><div><span>Mechanic pay</span><b>${rp(m)}</b></div><div><span>Cost</span><b>${rp(c)}</b></div><div><span>Job profit</span><b>${rp(p-m-c)}</b></div><div><span>Voucher</span><b>${rp(v)}</b></div><div class="b"><span>PROFIT WITH VOUCHER</span><span>${rp(p-m-c+v)}</span></div>`}
@@ -1543,7 +1543,7 @@ function vLcr(){
  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">${lcrSelSt(e,"lcrSt")}<select style="width:auto;font-size:12px" onchange="lcrMech('${e.id}',this.value)">${lcrMo(e.mech)}</select><input style="width:120px;font-size:12px" value="${esc(e.vno)}" placeholder="xxx xxx xxxx" inputmode="numeric" aria-label="Voucher number" onchange="lcrVNo('${e.id}',this.value)"><select style="width:auto;font-size:12px" aria-label="Voucher status" onchange="lcrVS('${e.id}',this.value)"><option value="Waiting" ${e.vstat!=="Claimed"?"selected":""}>Waiting</option><option value="Claimed" ${e.vstat==="Claimed"?"selected":""}>Claimed</option></select><button class="btn" style="font-size:12px;padding:2px 8px;min-height:30px" onclick="lcrEdit('${e.id}')">Edit</button><button class="btn x" style="padding:2px 8px;min-height:30px" onclick="lcrDel('${e.id}')">✕</button></div></div>`;
  return `<div class="card"><label>Month</label><select onchange="PM=this.value;draw()">${ms.map(m=>`<option value="${m}" ${m===PM?"selected":""}>${mName(m)}</option>`).join("")}</select></div>
  <div class="card"><h2>Add LCR job</h2>${ed?`<div style="color:var(--ac);margin-bottom:8px"><b>Editing</b> ${esc(ed.plate)}</div>`:""}
- <div class="g"><div style="grid-column:1/-1"><label>Job type</label><div style="display:flex;gap:6px">${["T","R"].map(k=>`<button type="button" class="btn ${LF.kind===k?"p":""}" style="flex:1" ${ed?"disabled":""} onclick="lcrKind('${k}')">${LKIND[k]}</button>`).join("")}</div></div>
+ <div class="g"><div style="grid-column:1/-1"><label>Job type</label><div style="display:flex;gap:6px">${["T","R"].map(k=>`<button type="button" class="btn ${LF.kind===k?"p":""}" style="flex:1" onclick="lcrKind('${k}')">${LKIND[k]}</button>`).join("")}</div></div>
  <div><label>Date</label><input type="date" value="${LF.date||today()}" oninput="LF.date=this.value"></div>
  <div><label>Finish date (actual)</label><input type="date" value="${LF.done||""}" onchange="lcrDone(this.value)"></div>
  <div><label>Plate number</label><input value="${esc(LF.plate)}" oninput="LF.plate=this.value.toUpperCase()" placeholder="DS 1234 AB"></div>
@@ -1591,7 +1591,7 @@ function vLcrP(){
 function lcrProcHTML(){
  const L=D.lcr.filter(e=>!isDone(e)).sort((a,b)=>a.date.localeCompare(b.date));
  if(!L.length)return `<div class="card" style="color:var(--mu)">No open LCR jobs.</div>`;
- return `<div class="card"><h2>LCR (${L.length})</h2>${L.map(e=>`<div class="hist" style="display:block"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>${esc(e.plate)}</b> · ${esc(e.motor)}<br><span style="color:var(--ac);font-size:12px;font-weight:600">${LKIND[e.kind]}</span> <span style="color:var(--mu);font-size:12px">${e.date} · ${esc(e.mech||"-")}${e.vno?" · "+esc(e.vno):""}${e.cust?" · "+esc(e.cust):""}${e.phone?" · "+esc(e.phone):""}</span></div><div style="display:flex;gap:6px;align-items:center">${lcrSelSt(e,"lcrSt")}<button class="btn" onclick="PM='${rd(e)}';tab='lcr';draw()">Open</button></div></div></div>`).join("")}</div>`}
+ return `<div class="card"><h2>LCR (${L.length})</h2>${L.map(e=>`<div class="hist" style="display:block"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>${esc(e.plate)}</b> · ${esc(e.motor)}<br><span style="color:var(--ac);font-size:12px;font-weight:600">${LKIND[e.kind]}</span> <span style="color:var(--mu);font-size:12px">${e.date} · ${esc(e.mech||"-")}${e.vno?" · "+esc(e.vno):""}${e.cust?" · "+esc(e.cust):""}${e.phone?" · "+esc(e.phone):""}</span></div><div style="display:flex;gap:6px;align-items:center">${lcrSelSt(e,"lcrSt")}<button class="btn" onclick="PM='${rd(e)}';tab='lcr';lcrEdit('${e.id}')">Open</button></div></div></div>`).join("")}</div>`}
 
 /* LCR in reports: mechanic pay = additional income named "LCR"; store profit = price - cost + claimed voucher */
 const LCR_R1=50000;/* Ganti Rangka: tahap 1 dibayar saat order (50.000), sisanya saat selesai (mis. 150.000 dari total 200.000) */
