@@ -33,6 +33,7 @@ input,select{width:100%;padding:8px;border:1px solid var(--bd);border-radius:6px
 .rs{grid-template-columns:1.3fr 1.3fr 1fr 1fr 36px}
 .rp{grid-template-columns:2fr 70px 1fr 1fr 1fr 36px}
 .rc{grid-template-columns:1fr 2fr .7fr 1fr 1fr 1fr 1fr 1fr 36px}
+.row.low{border-left:3px solid var(--ac);padding-left:8px;background:rgba(204,0,0,.07);border-radius:6px}
 .rv{grid-template-columns:1fr 2fr 1fr 36px}
 .pkr{grid-template-columns:1.2fr 2fr .6fr 36px}
 .pks{width:auto;max-width:100%;font-weight:600}
@@ -401,7 +402,7 @@ function norm(d){
  const mc=A(d.mechs).map(m=>T(m).trim().toUpperCase()).filter(Boolean);
  return{
   services:A(d.services).map(x=>({id:nid(x&&x.id),name:T(x&&x.name),price:num(x&&x.price),sp:x&&x.sp?1:0})),
-  parts:A(d.parts).map(x=>({id:nid(x&&x.id),sku:T(x&&x.sku),name:T(x&&x.name),price:num(x&&x.price),profit:num(x&&x.profit),stock:Math.max(0,Math.floor(num(x&&x.stock))),jd:num(x&&x.jd),jt:num(x&&x.jt),fd:x&&x.fd?1:0})),
+  parts:A(d.parts).map(x=>({id:nid(x&&x.id),sku:T(x&&x.sku),name:T(x&&x.name),price:num(x&&x.price),profit:num(x&&x.profit),stock:Math.max(0,Math.floor(num(x&&x.stock))),jd:num(x&&x.jd),jt:num(x&&x.jt),fd:x&&x.fd?1:0,...(x&&x.lw!=null&&x.lw!==""&&isFinite(Number(x.lw))?{lw:Math.max(0,Math.floor(Number(x.lw)))}:{})})),
   orders:A(d.orders).map(o=>{o=o||{};return{id:nid(o.id),queue:(typeof o.queue==="number"||o.queue==="")?o.queue:null,plate:T(o.plate),eng:T(o.eng),motor:T(o.motor),cust:T(o.cust),phone:T(o.phone),addr:T(o.addr),date:T(o.date).slice(0,10),
    lines:A(o.lines).map(l=>({id:nid(l&&l.id),sid:cid(l&&l.sid),name:T(l&&l.name),price:num(l&&l.price),mech:T(l&&l.mech)||MECH0[0],pj:cid(l&&l.pj),sp:l&&l.sp?1:0})),
    pl:A(o.pl).map(l=>{l=l||{};const r={id:nid(l.id),pid:cid(l.pid),qty:Math.max(1,num(l.qty)||1)};if(l.rj)r.rj=T(l.rj);if(l.rd)r.rd=1;if(l.pk&&typeof l.pk==="object")r.pk={n:T(l.pk.n),jd:num(l.pk.jd),jt:num(l.pk.jt)};if(l.pf)r.pf=T(l.pf);if(l.pg)r.pg=1;if(l.sk){r.sk=1;r.ded=Math.max(0,num(l.ded))}if(l.snap&&typeof l.snap==="object")r.snap={sku:T(l.snap.sku),price:num(l.snap.price),profit:num(l.snap.profit),name:T(l.snap.name)};return r}),
@@ -468,10 +469,10 @@ const byQ=(a,b)=>num(a.queue)-num(b.queue);
 /* ---------- grouped tabs: 6 main buttons, sub-tabs appear underneath ---------- */
 let GT={};/* last sub-tab opened in each group */
 function nav(){
- const nProc=D.orders.filter(o=>!isDone(o)).length+D.ovh.filter(e=>!isDone(e)).length+D.lcr.filter(e=>!isDone(e)).length,nNew=D.parts.filter(p=>p.fd).length,
+ const nProc=D.orders.filter(o=>!isDone(o)).length+D.ovh.filter(e=>!isDone(e)).length+D.lcr.filter(e=>!isDone(e)).length,nNew=D.parts.filter(p=>p.fd).length,nLow=D.parts.filter(isLow).length,
  G=[
   {k:"kerja",l:"Kerja",bd:nProc?String(nProc):"",t:[["order","Work Order"],["ovh","Overhaul"],["lcr","LCR"],["proc","Process ("+nProc+")"]]},
-  {k:"data",l:"Data",bd:nNew?"+"+nNew:"",t:[["services","Services"],["parts","Spareparts"+(nNew?" ("+nNew+" new)":"")],["motors","Motor Types"],["lcrp","LCR Motor"],["mechs","Mechanics"]]},
+  {k:"data",l:"Data",bd:(nNew?"+"+nNew:"")+(nLow?(nNew?" ":"")+"⚠"+nLow:""),t:[["services","Services"],["parts","Spareparts"+(nNew?" ("+nNew+" new)":"")+(nLow?" ⚠"+nLow:"")],["motors","Motor Types"],["lcrp","LCR Motor"],["mechs","Mechanics"]]},
   {k:"laporan",l:"Laporan",t:[["daily","Daily Result"],["profit","Profit Monthly"],["perf","Mechanic Monthly"],["tax","Tax & Reorder Monthly"],["spo","Order Sparepart"+(spoOpen()?" ("+spoOpen()+")":"")]]},
   {k:"uang",l:"Keuangan",t:[["exp","Expense"],["adv","Salary"]]},
   {k:"riwayat",l:"Riwayat",bd:String(D.orders.length+D.ovh.length),t:[["hist",""]]},
@@ -633,7 +634,7 @@ function vServ(){
  <button class="btn x" onclick="del('services','${s.id}')">✕</button></div>`).join("")}</div>`;
 }
 let PQ="",PLim=50;
-function pRow(p){return `<div class="row rc"><div><label>SKU</label><input value="${esc(p.sku)}" oninput="ed('parts','${p.id}','sku',this.value)"></div>
+function pRow(p){return `<div class="row rc${isLow(p)?" low":""}" id="row_${p.id}"><div><label>SKU</label><input value="${esc(p.sku)}" oninput="ed('parts','${p.id}','sku',this.value)"></div>
  <div><label>Name</label><input value="${esc(p.name)}" oninput="ed('parts','${p.id}','name',this.value)"></div>
  <div><label>QTY</label><input type="number" min="0" step="1" value="${p.stock||0}" oninput="ed('parts','${p.id}','stock',Math.max(0,Math.floor(num(this.value))))"></div>
   <div><label>Sell price</label><input type="number" value="${p.price}" oninput="ed('parts','${p.id}','price',num(this.value),1)"></div>
@@ -641,8 +642,8 @@ function pRow(p){return `<div class="row rc"><div><label>SKU</label><input value
  <div class="ro rcy">Reorder cost<br><b id="rc_${p.id}">${rp(p.price-p.profit)}</b></div>
   <div><label>Jasa wo/s</label><input type="number" value="${p.jd||0}" oninput="ed('parts','${p.id}','jd',num(this.value))"></div>
   <div><label>Jasa w/s</label><input type="number" value="${p.jt||0}" oninput="ed('parts','${p.id}','jt',num(this.value))"></div>
-  <button class="btn x" onclick="del('parts','${p.id}')">✕</button></div>`}
-function pList(){const ws=PQ.toLowerCase().trim().split(/\s+/).filter(Boolean),all=srtP().filter(p=>!p.fd),m=ws.length?all.filter(p=>{const h=ph(p);return ws.every(w=>h.includes(w))}):all,sh=m.slice(0,PLim);
+  <button class="btn x" onclick="del('parts','${p.id}')">✕</button>${lowRow(p)}</div>`}
+function pList(){const ws=PQ.toLowerCase().trim().split(/\s+/).filter(Boolean),all=srtP().filter(p=>!p.fd&&(!PLow||isLow(p))),m=ws.length?all.filter(p=>{const h=ph(p);return ws.every(w=>h.includes(w))}):all,sh=m.slice(0,PLim);
  return `<div class="sc">${sh.length?sh.map(pRow).join(""):`<p style="color:var(--mu)">No sparepart found.</p>`}</div>${m.length>sh.length?`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0"><span style="color:var(--mu);font-size:13px">Showing ${sh.length} of ${m.length}</span><button class="btn" onclick="PLim+=50;pRef()">Show 50 more</button></div>`:`<p style="color:var(--mu);font-size:13px">${m.length} sparepart${m.length===1?"":"s"}</p>`}`}
 function pRef(){const e=document.getElementById("pl");if(e)e.innerHTML=pList()}
 let pT=0;function pSearch(v){PQ=v;PLim=50;clearTimeout(pT);pT=setTimeout(pRef,150)}
@@ -661,10 +662,10 @@ function npCard(){
 function npDone(id){const p=part(id);if(!p)return;p.fd=0;SPc=null;save();draw()}
 document.addEventListener("focusout",e=>{if(NPchg&&e.target&&e.target.closest&&e.target.closest("#npl"))setTimeout(()=>{const a=document.activeElement;if(a&&a.closest&&a.closest("#npl"))return;NPchg=false;draw()},150)});
 function vParts0(){
- return npCard()+`<div class="card"><h2 class="dht" role="button" tabindex="0" aria-expanded="${UI.sp?"false":"true"}" onclick="tglC('sp',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tglC('sp',this)}"><span>Spareparts (${D.parts.filter(p=>!p.fd).length})</span>${chev("sp")}</h2><div class="cbody" ${UI.sp?"hidden":""}><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn p" onclick="PQ='';PLim=50;D.parts.push({id:uid(),sku:'',name:'New part',price:0,profit:0,stock:0,jd:0,jt:0});SPc=null;save();draw();window.scrollTo(0,0)">+ Add sparepart</button><button class="btn p" type="button" onclick="openScan('p')">📷 Scan barcode</button><label class="btn" style="margin:0;font-size:15px;color:var(--tx)">⬆ Import many (CSV / Excel)<input type="file" accept=".csv,.txt,.xlsx,.xls" style="display:none" onchange="pImport(this)"></label><button class="btn" onclick="pTpl()">Template CSV</button><button class="btn" onclick="pExport()">⬇ Export (Excel)</button><button class="btn" onclick="pExport(1)">⬇ Export (CSV)</button></div><p id="pmsg" style="color:var(--mu);font-size:12px;margin:0 0 10px">Columns: SKU, Name, QTY (stock, default 0), Price, Profit, Jasa wo/s, Jasa w/s (the last two are optional). Existing SKUs are updated, new SKUs are added; nothing is deleted.</p><input type="search" placeholder="Search SKU or name…" value="${esc(PQ)}" oninput="pSearch(this.value)" style="margin-bottom:10px"><div id="pl">${pList()}</div>
+ return npCard()+lowCard()+`<div class="card"><h2 class="dht" role="button" tabindex="0" aria-expanded="${UI.sp?"false":"true"}" onclick="tglC('sp',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tglC('sp',this)}"><span>Spareparts (${D.parts.filter(p=>!p.fd).length})</span>${chev("sp")}</h2><div class="cbody" ${UI.sp?"hidden":""}><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn p" onclick="PQ='';PLim=50;D.parts.push({id:uid(),sku:'',name:'New part',price:0,profit:0,stock:0,jd:0,jt:0});SPc=null;save();draw();window.scrollTo(0,0)">+ Add sparepart</button><button class="btn p" type="button" onclick="openScan('p')">📷 Scan barcode</button><label class="btn" style="margin:0;font-size:15px;color:var(--tx)">⬆ Import many (CSV / Excel)<input type="file" accept=".csv,.txt,.xlsx,.xls" style="display:none" onchange="pImport(this)"></label><button class="btn" onclick="pTpl()">Template CSV</button><button class="btn" onclick="pExport()">⬇ Export (Excel)</button><button class="btn" onclick="pExport(1)">⬇ Export (CSV)</button></div><p id="pmsg" style="color:var(--mu);font-size:12px;margin:0 0 10px">Columns: SKU, Name, QTY (stock, default 0), Price, Profit, Jasa wo/s, Jasa w/s (the last two are optional). Existing SKUs are updated, new SKUs are added; nothing is deleted.</p><input type="search" placeholder="Search SKU or name…" value="${esc(PQ)}" oninput="pSearch(this.value)" style="margin-bottom:10px"><div id="pl">${pList()}</div>
   <p style="color:var(--mu);font-size:12px">Reorder cost = sell price − profit (the part of the price set aside to buy stock again). QTY = stock; a part with QTY 0 can still be added to a Work Order or Overhaul, and the stock is reduced by the quantity used but never goes below 0. Jasa wo/s / w/s = replacement labor fee recommended in Work Order when this part is added. The list shows 50 spareparts at a time to keep the app fast; use the search to find any part.</p></div></div>`;
 }
-function ed(k,id,f,v,r){const x=k==="parts"?part(id):D[k].find(a=>a.id===id);x[f]=v;if(k==="parts"&&f==="profit"&&x.fd&&v>0){x.fd=0;SPc=null;NPchg=true;}if(k==="parts"&&(f==="sku"||f==="name")){SPc=null;PH.delete(x)}save();if(r){const e=document.getElementById("rc_"+id);if(e)e.textContent=rp(x.price-x.profit)}}
+function ed(k,id,f,v,r){const x=k==="parts"?part(id):D[k].find(a=>a.id===id);x[f]=v;if(k==="parts"&&f==="profit"&&x.fd&&v>0){x.fd=0;SPc=null;NPchg=true;}if(k==="parts"&&(f==="sku"||f==="name")){SPc=null;PH.delete(x)}save();if(k==="parts"&&f==="stock")lowRef(id);if(r){const e=document.getElementById("rc_"+id);if(e)e.textContent=rp(x.price-x.profit)}}
 function del(k,id){if(confirm("Delete?")){if(k==="orders"||k==="parts")fdTomb(id);D[k]=D[k].filter(a=>a.id!==id);save();draw()}}
 
 let CD=(()=>{try{return new Set(JSON.parse(localStorage.getItem("hcol")||"[]"))}catch(e){return new Set}})();
@@ -1653,7 +1654,7 @@ function vPerf(){
 const cbIn=(k,id,v)=>`<input class="cbi" autocomplete="off" value="${esc(v)}" placeholder="${k==="s"||k==="v"||k==="z"||k==="vo"||k==="zo"?"Search or pick…":k==="j"?"+ Add sparepart (search)…":"Search part…"}" onfocus="this.select();cbOpen(this,'${k}','${id}',1)" oninput="cbOpen(this,'${k}','${id}')" onblur="cbClose(this,'${k}','${id}')"><div class="cbl" hidden></div>`;
 function cbOpen(inp,k,id,all){
  const ws=all?[]:inp.value.toLowerCase().trim().split(/\s+/).filter(Boolean),box=inp.nextElementSibling,isS=k==="s"||k==="v"||k==="z"||k==="vo"||k==="zo",arr=isS?((k==="z"||k==="zo")?srtS().filter(x=>x.sp):k==="s"?srtS().filter(x=>!x.sp):srtS()):srtP(),m=[];
- for(const x of arr){const h=isS?x.name.toLowerCase():ph(x);if(ws.every(w=>h.includes(w))){m.push({id:x.id,t:isS?(x.sp?"★ ":"")+x.name+" · "+rp(x.price):x.sku+" · "+x.name+" · "+rp(x.price)+" · stok "+Math.max(0,num(x.stock))});if(m.length>=50)break}}
+ for(const x of arr){const h=isS?x.name.toLowerCase():ph(x);if(ws.every(w=>h.includes(w))){m.push({id:x.id,t:isS?(x.sp?"★ ":"")+x.name+" · "+rp(x.price):x.sku+" · "+x.name+" · "+rp(x.price)+" · stok "+Math.max(0,num(x.stock))+(isLow(x)?" ⚠ rendah":"")});if(m.length>=50)break}}
  const f=(k==="s"||k==="z")?"pickS":k==="vo"?"pickOJl":k==="zo"?"pickOSl":k==="o"?"pickOP":k==="j"?"pickOJ":"pickP";
  box.innerHTML=(isS?`<div onmousedown="event.preventDefault();${f}('${id}','')">Custom (type your own)…</div>`:"")+(m.length?m.map(x=>`<div onmousedown="event.preventDefault();${f}('${id}','${x.id}')">${esc(x.t)}</div>`).join(""):`<div class="none">No match</div>`);
  box.hidden=false;
@@ -1670,14 +1671,14 @@ function flt(inp){const q=inp.value.toLowerCase().trim();inp.closest(".card").qu
 /* ---------- export spareparts (same columns as import) ---------- */
 async function pExport(csv){
  if(!D.parts.length){alert("No spareparts to export.");return}
- const m=document.getElementById("pmsg"),H=["SKU","Name","QTY","Price","Profit","Reorder Cost","Jasa wo/s","Jasa w/s"];
- const rows=D.parts.map(p=>[p.sku||"",p.name||"",p.stock||0,p.price||0,p.profit||0,(p.price||0)-(p.profit||0),p.jd||0,p.jt||0]);
+ const m=document.getElementById("pmsg"),H=["SKU","Name","QTY","Price","Profit","Reorder Cost","Jasa wo/s","Jasa w/s","Low Stock Limit"];
+ const rows=D.parts.map(p=>[p.sku||"",p.name||"",p.stock||0,p.price||0,p.profit||0,(p.price||0)-(p.profit||0),p.jd||0,p.jt||0,lowLim(p)===null?"":lowLim(p)]);
  const dl=(blob,name)=>{const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)};
  const stamp=new Date().toISOString().slice(0,10);
  const toCsv=()=>{const q=v=>{v=String(v);return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};dl(new Blob(["\ufeff"+[H,...rows].map(r=>r.map(q).join(",")).join("\r\n")],{type:"text/csv;charset=utf-8"}),"spareparts-"+stamp+".csv")};
  if(csv){toCsv();if(m)m.textContent="Exported "+rows.length+" spareparts to CSV.";return}
  try{await loadX()}catch(e){toCsv();if(m)m.textContent="Excel library could not load, exported "+rows.length+" spareparts as CSV instead.";return}
- const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet([H,...rows]);ws['!cols']=[{wch:16},{wch:34},{wch:8},{wch:12},{wch:12},{wch:14},{wch:18},{wch:18}];
+ const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet([H,...rows]);ws['!cols']=[{wch:16},{wch:34},{wch:8},{wch:12},{wch:12},{wch:14},{wch:18},{wch:18},{wch:16}];
  XLSX.utils.book_append_sheet(wb,ws,"Spareparts");
  dl(new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),"spareparts-"+stamp+".xlsx");
  if(m)m.textContent="Exported "+rows.length+" spareparts to Excel."}
@@ -1693,14 +1694,14 @@ async function pImport(inp){
   let rows;if(/\.(csv|txt)$/i.test(f.name))rows=csvRows(await f.text());else{await loadX();const wb=XLSX.read(await f.arrayBuffer(),{type:"array"});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""})}
   if(!rows.length){m("The file is empty.");return}
   const H=rows[0].map(x=>String(x).trim().toLowerCase()),fi=re=>H.findIndex(h=>re.test(h));
-  let iS=fi(/^(sku|kode|part\s*(no|number)|no\.?\s*part)/),iN=fi(/^(name|nama|desc)/),iP=fi(/^(price|harga|sell)/),iF=fi(/^(profit|laba|untung)/),iQ=fi(/^(qty|quantity|stok|stock|jumlah)/),iJD=fi(/dengan\s*servis|with\s*serv/),iJT=fi(/tanpa\s*servis|without\s*serv/),hd=iS>=0||iN>=0;
+  let iS=fi(/^(sku|kode|part\s*(no|number)|no\.?\s*part)/),iN=fi(/^(name|nama|desc)/),iP=fi(/^(price|harga|sell)/),iF=fi(/^(profit|laba|untung)/),iQ=fi(/^(qty|quantity|stok|stock|jumlah)/),iJD=fi(/dengan\s*servis|with\s*serv/),iJT=fi(/tanpa\s*servis|without\s*serv/),iL=fi(/^(low|batas|min)/),hd=iS>=0||iN>=0;
   if(!hd){iS=0;iN=1;iP=2;iF=3}else{if(iS<0)iS=0;if(iN<0)iN=1;if(iP<0)iP=2;if(iF<0)iF=3}
   const by=new Map();D.parts.forEach(p=>{const k=p.sku.trim().toLowerCase();if(k&&!by.has(k))by.set(k,p)});
   let add=0,upd=0;
   for(const r of rows.slice(hd?1:0)){const sku=String(r[iS]==null?"":r[iS]).trim(),name=String(r[iN]==null?"":r[iN]).trim();if(!sku&&!name)continue;
    const k=sku.toLowerCase(),ex=k?by.get(k):null,pr=pn(r[iP]),pf=pn(r[iF]);
-   const sq=iQ>=0?Math.max(0,Math.floor(pn(r[iQ]))):null,jd=iJD>=0?pn(r[iJD]):null,jt=iJT>=0?pn(r[iJT]):null;
-    if(ex){ex.name=name||ex.name;ex.price=pr;ex.profit=pf;if(sq!==null)ex.stock=sq;if(jd!==null)ex.jd=jd;if(jt!==null)ex.jt=jt;PH.delete(ex);upd++}else{const p={id:uid(),sku,name,price:pr,profit:pf,stock:sq||0,jd:jd||0,jt:jt||0};D.parts.push(p);if(k)by.set(k,p);add++}}
+   const sq=iQ>=0?Math.max(0,Math.floor(pn(r[iQ]))):null,jd=iJD>=0?pn(r[iJD]):null,jt=iJT>=0?pn(r[iJT]):null,lw=(iL>=0&&String(r[iL]==null?"":r[iL]).trim()!=="")?Math.max(0,Math.floor(pn(r[iL]))):null;
+    if(ex){ex.name=name||ex.name;ex.price=pr;ex.profit=pf;if(sq!==null)ex.stock=sq;if(jd!==null)ex.jd=jd;if(jt!==null)ex.jt=jt;if(lw!==null)ex.lw=lw;PH.delete(ex);upd++}else{const p={id:uid(),sku,name,price:pr,profit:pf,stock:sq||0,jd:jd||0,jt:jt||0,...(lw!==null?{lw}:{})};D.parts.push(p);if(k)by.set(k,p);add++}}
   SPc=null;save();PQ="";PLim=50;draw();m("Done: "+add+" added, "+upd+" updated. Total "+D.parts.length+" spareparts.");
  }catch(e){m("Import failed: "+(e&&e.message||e))}finally{inp.value=""}
 }
@@ -1708,8 +1709,57 @@ async function pImport(inp){
 
 /* ---------- Stok sparepart: default 0, boleh dijual walau 0, tidak pernah di bawah 0 ---------- */
 const stkOf=p=>Math.max(0,Math.floor(num(p&&p.stock)));
+/* ---------- Stok rendah: batas per sparepart (bisa diubah) + saran dari pemakaian 3 bulan terakhir ---------- */
+/* p.lw = batas stok rendah. Kosong = tanpa peringatan. Sparepart ditandai rendah kalau stok <= batas. */
+const lowLim=p=>{if(!p||p.lw==null||p.lw==="")return null;const n=Number(p.lw);return isFinite(n)?Math.max(0,Math.floor(n)):null};
+const isLow=p=>{const l=lowLim(p);return l!==null&&!p.fd&&stkOf(p)<=l};
+let LOWC=(()=>{try{const c=JSON.parse(localStorage.getItem("low_cfg")||"{}");return{m:[0.5,1,1.5,2].includes(c.m)?c.m:0.5}}catch(e){return{m:0.5}}})();
+let PLow=false,LOWs=null,LOWq=[],LOWt=0;
+/* pemakaian 90 hari terakhir per sparepart (PKB & Turmes berstatus Done, sparepart "Beli" tidak ikut) */
+function lowSold(){
+ const k=D.updated+":"+D.orders.length+":"+D.ovh.length+":"+D.parts.length;if(LOWs&&LOWs.k===k)return LOWs.m;
+ const d=new Date(Date.now()-new Date().getTimezoneOffset()*60000);d.setDate(d.getDate()-90);const cut=d.toISOString().slice(0,10),m={};
+ const add=e=>{if(String(e.done||e.date||"").slice(0,10)<cut)return;(e.pl||[]).forEach(l=>{if(isBx(l)||!l.pid)return;m[l.pid]=(m[l.pid]||0)+num(l.qty)})};
+ D.orders.filter(isDone).forEach(add);D.ovh.filter(isDone).forEach(add);LOWs={k,m};return m}
+/* saran batas = rata-rata pemakaian per bulan x lama tunggu restok, dibulatkan ke atas, minimal 1 */
+function lowRec(p){const s=lowSold()[p.id]||0;if(!(s>0))return{s:0,avg:0,rec:null};const avg=s/3;return{s,avg,rec:Math.max(1,Math.ceil(avg*LOWC.m-1e-9))}}
+function lowInfo(p){
+ const l=lowLim(p),st=stkOf(p),r=lowRec(p);let h="";
+ if(l!==null&&st<=l)h+=`<b style="color:var(--ac)">⚠ Stok rendah: sisa ${st}, batas ${l}</b>`;
+ else if(l!==null)h+=`<span style="color:var(--ok)">✓ Stok aman (sisa ${st}, batas ${l})</span>`;
+ else h+=`<span>Belum ada batas, tidak ada peringatan</span>`;
+ if(r.rec===null)h+=`<span>· Saran: belum ada pemakaian dalam 3 bulan terakhir</span>`;
+ else{h+=`<span>· Saran batas: <b style="color:var(--tx)">${r.rec}</b> <span style="font-size:11px">(keluar ${sgFmt(r.s)} pcs / 3 bln ≈ ${sgFmt(r.avg)}/bln)</span></span>`;
+  if(l!==r.rec)h+=`<button type="button" class="btn" style="min-height:28px;padding:2px 10px;font-size:12px" onclick="lowUse('${p.id}')">Pakai ${r.rec}</button>`}
+ return h}
+function lowRow(p){const l=lowLim(p);
+ return `<div style="grid-column:1/-1;display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--mu)"><label style="margin:0;display:flex;align-items:center;gap:6px;white-space:nowrap">Batas stok rendah<input id="lwi_${p.id}" type="number" min="0" step="1" inputmode="numeric" placeholder="–" value="${l===null?"":l}" style="width:76px" oninput="lowSet('${p.id}',this.value)"></label><span id="lws_${p.id}" style="display:contents">${lowInfo(p)}</span></div>`}
+function lowHead(n){return (n?"⚠ ":"")+"Stok Rendah ("+n+")"}
+function lowPanel(){
+ const P=D.parts.filter(p=>!p.fd),L=P.filter(isLow).sort((a,b)=>(stkOf(a)-lowLim(a))-(stkOf(b)-lowLim(b))||COL.compare(a.sku,b.sku)),
+  un=P.filter(p=>lowLim(p)===null&&lowRec(p).rec!==null).length,
+  sel=`<select onchange="lowCfg(this.value)" style="width:auto">${[[0.5,"½ bulan (± 2 minggu)"],[1,"1 bulan"],[1.5,"1½ bulan"],[2,"2 bulan"]].map(([a,b])=>`<option value="${a}" ${a===LOWC.m?"selected":""}>${b}</option>`).join("")}</select>`;
+ return `<p style="color:var(--mu);font-size:12px;margin:0 0 8px">Setiap sparepart punya <b>Batas stok rendah</b> sendiri (kolom di bawah baris sparepart, bisa diubah). Kalau sisa stok ≤ batas, baris ditandai merah dan muncul di daftar ini. Kosongkan batas = tanpa peringatan.</p>
+ <label style="margin:0 0 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--tx)">Saran batas = pemakaian selama ${sel}</label>
+ <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn p" onclick="lowApplyAll()" ${un?"":"disabled"}>Terapkan saran ke ${un} sparepart yang belum diatur</button><button class="btn ${PLow?"p":""}" onclick="PLow=!PLow;PLim=50;draw()">${PLow?"Tampilkan semua sparepart":"Tampilkan hanya stok rendah"}</button></div>
+ ${L.length?`<div class="sc"><table style="width:100%;border-collapse:collapse;min-width:420px"><tr style="color:var(--mu);font-size:12px;text-align:right"><th style="text-align:left;padding:6px">Sparepart</th><th>Sisa</th><th>Batas</th><th>Saran batas</th><th></th></tr>${L.slice(0,30).map(p=>{const r=lowRec(p);return `<tr style="border-top:1px solid var(--bd);text-align:right"><td style="text-align:left;padding:6px"><b>${esc(p.sku)}</b><div style="color:var(--mu);font-size:12px">${esc(p.name)}</div></td><td style="${stkOf(p)<=0?"color:var(--ac);font-weight:700":""}">${stkOf(p)}</td><td>${lowLim(p)}</td><td>${r.rec===null?"-":r.rec}</td><td><button class="btn" onclick="lowGo('${p.id}')">Buka</button></td></tr>`}).join("")}</table></div>${L.length>30?`<p style="color:var(--mu);font-size:12px">dan ${L.length-30} sparepart lainnya (pakai tombol "Tampilkan hanya stok rendah").</p>`:""}`:`<div class="ro">Tidak ada sparepart di bawah batasnya. 👍</div>`}
+ <p style="color:var(--mu);font-size:12px;margin:10px 0 0">Saran dihitung dari pemakaian sparepart di PKB &amp; Turmes berstatus Done selama 90 hari terakhir (3 bulan, sparepart "Beli" tidak ikut): rata-rata keluar per bulan × lama pemakaian yang dipilih (anggap itu lama tunggu restok), dibulatkan ke atas, minimal 1. Untuk jumlah yang perlu dipesan, lihat tab Order Sparepart.</p>`}
+function lowCard(){const n=D.parts.filter(isLow).length;
+ return `<div class="card" style="${n?"border:2px solid var(--ac)":""}"><h2 class="dht" role="button" tabindex="0" aria-expanded="${UI.low?"false":"true"}" onclick="tglC('low',this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();tglC('low',this)}"><span id="lowh" style="${n?"color:var(--ac)":""}">${lowHead(n)}</span>${chev("low")}</h2><div class="cbody" ${UI.low?"hidden":""}><div id="lowp">${lowPanel()}</div></div></div>`}
+function lowPanelRef(){const e=document.getElementById("lowp");if(e)e.innerHTML=lowPanel();const h=document.getElementById("lowh");if(h){const n=D.parts.filter(isLow).length;h.textContent=lowHead(n);h.style.color=n?"var(--ac)":"";if(h.closest(".card"))h.closest(".card").style.border=n?"2px solid var(--ac)":""}}
+function lowRef(id){const p=part(id);if(!p)return;const e=document.getElementById("lws_"+id);if(e)e.innerHTML=lowInfo(p);const r=document.getElementById("row_"+id);if(r)r.classList.toggle("low",isLow(p));lowPanelRef();nav()}
+function lowSet(id,v){const p=part(id);if(!p)return;v=String(v).trim();if(v==="")delete p.lw;else p.lw=Math.max(0,Math.floor(num(v)));save();lowRef(id)}
+function lowUse(id){const p=part(id),r=p&&lowRec(p);if(!r||r.rec===null)return;p.lw=r.rec;const i=document.getElementById("lwi_"+id);if(i)i.value=r.rec;save();lowRef(id)}
+function lowApplyAll(){const L=D.parts.filter(p=>!p.fd&&lowLim(p)===null&&lowRec(p).rec!==null);if(!L.length)return;
+ if(!confirm("Isi batas stok rendah untuk "+L.length+" sparepart sesuai saran (dari pemakaian 3 bulan terakhir)? Batas yang sudah kamu atur tidak diubah."))return;
+ L.forEach(p=>{p.lw=lowRec(p).rec});save();draw()}
+function lowCfg(v){LOWC.m=num(v)||0.5;try{localStorage.setItem("low_cfg",JSON.stringify(LOWC))}catch(e){}draw()}
+function lowGo(id){const p=part(id);if(!p)return;PQ=p.sku||p.name||"";PLim=50;PLow=false;draw();setTimeout(()=>{const e=document.getElementById("row_"+id);if(e)e.scrollIntoView({block:"center"})},60)}
+/* pemberitahuan sesaat ketika stok turun sampai/di bawah batas karena PKB / Turmes disimpan */
+function lowNote(p){LOWq.push((p.sku||p.name||"?")+" (sisa "+stkOf(p)+", batas "+lowLim(p)+")");clearTimeout(LOWt);
+ LOWt=setTimeout(()=>{const q=LOWq.splice(0);if(q.length)toast("⚠ Stok rendah: "+q.slice(0,3).join(", ")+(q.length>3?" +"+(q.length-3)+" lagi":""))},80)}
 /* take up to n units from stock; l.ded remembers what was really taken so edits/deletes can give it back */
-function dedLine(l,n){const p=part(l.pid);if(!p||!(n>0))return 0;const q=Math.min(stkOf(p),n);p.stock=stkOf(p)-q;l.ded=num(l.ded)+q;l.sk=1;return q}
+function dedLine(l,n){const p=part(l.pid);if(!p||!(n>0))return 0;const wl=isLow(p),q=Math.min(stkOf(p),n);p.stock=stkOf(p)-q;if(!wl&&isLow(p))lowNote(p);l.ded=num(l.ded)+q;l.sk=1;return q}
 function stkBack(l){if(l&&l.sk&&num(l.ded)>0){const p=part(l.pid);if(p)p.stock=stkOf(p)+num(l.ded);l.ded=0}}
 function ovDedN(ns,a){return ns?a:ovDed(a)}
 function ovDed(a){a.forEach(l=>{l.sk=1;l.ded=0;dedLine(l,Math.max(1,num(l.qty)))});return a}
@@ -1721,7 +1771,7 @@ function stockSync(prev,next){
   l.sk=1;l.ded=0;if(part(l.pid))dedLine(l,Math.max(1,num(l.qty)))})}
 /* baris sparepart dari paket digabung dalam 1 border */
 const pgGrp=(L,f)=>{let h="",o=false;L.forEach((l,i)=>{const g=!isBx(l)&&!!l.pg;if(g&&!o){h+='<div class="pkgrp">';o=true}else if(!g&&o){h+='</div>';o=false}h+=f(l,i)});return h+(o?'</div>':'')};
-const stk=p=>p?`<span style="color:${stkOf(p)<=0?"var(--ac)":"var(--mu)"}"> · Stok: ${stkOf(p)}${stkOf(p)<=0?" (kosong, tetap boleh)":""}</span>`:"";
+const stk=p=>p?`<span style="color:${stkOf(p)<=0?"var(--ac)":"var(--mu)"}"> · Stok: ${stkOf(p)}${stkOf(p)<=0?" (kosong, tetap boleh)":""}${isLow(p)&&stkOf(p)>0?` <b style="color:var(--yl)">⚠ rendah (batas ${lowLim(p)})</b>`:""}</span>`:"";
 /* ---------- Rekomendasi jasa ganti sparepart ---------- */
 const JN={d:"tanpa servis",t:"dengan servis"},jfee=(p,k)=>p?num(k==="d"?p.jd:p.jt):0;
 const recSrc=(l,p)=>l&&l.pk?{name:l.pk.n,jd:l.pk.jd,jt:l.pk.jt,pkg:1}:p?{name:p.name,jd:p.jd,jt:p.jt}:null;
