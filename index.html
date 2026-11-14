@@ -1489,6 +1489,22 @@ const lcrVF=v=>{const s=String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"").sli
 const lcrVDup=(vn,id)=>!!vn&&D.lcr.some(e=>e.id!==id&&e.vno===vn);
 function lcrBlank(){return{id:"",date:"",done:"",plate:"",motor:"",km:"",eng:"",frame:"",kind:"T",status:"Working",mech:"",price:"",mpay:"",cost:"",vno:"",vamt:"",vstat:"Waiting",cust:"",phone:""}}
 let LF=lcrBlank(),LKF="",LVF="";
+/* Search (plate / engine no. / frame no.) across ALL months, finished and unfinished */
+let LQ="",PRQ="",LJOB=null;
+const srN=v=>String(v==null?"":v).toLowerCase().replace(/[\s\-\.]/g,"");
+const srHit=(q,o)=>{q=srN(q);return !!q&&[o.plate,o.eng,o.frame].some(f=>srN(f).includes(q))};
+const srBox=(id,fn,val)=>`<div class="card"><input id="${id}" type="search" placeholder="Cari no. polisi, no. mesin, no. rangka…" value="${esc(val)}" oninput="${fn}(this.value)" aria-label="Search plate, engine number, frame number" autocomplete="off"><div style="font-size:11px;color:var(--mu);margin-top:4px">Mencari di semua bulan · pekerjaan selesai dan belum selesai</div></div>`;
+function lcrSrHTML(){if(!srN(LQ))return "";const L=D.lcr.filter(e=>srHit(LQ,e)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+ return `<div class="card"><div style="font-weight:700;margin-bottom:6px">Hasil pencarian (${L.length})</div>${L.length&&LJOB?L.map(LJOB).join(""):`<div style="color:var(--mu)">Tidak ada pekerjaan LCR yang cocok.</div>`}</div>`}
+function lcrSearch(v){LQ=v;const r=document.getElementById("lqr");if(r)r.innerHTML=lcrSrHTML()}
+function prSrHTML(){if(!srN(PRQ))return "";
+ const R=[...D.orders.map(o=>({k:o.po?"Sparepart only":"Servis",o,t:"o"})),...D.ovh.map(o=>({k:"Overhaul",o,t:"v"})),...D.lcr.map(o=>({k:LKIND[o.kind],o,t:"l"}))].filter(x=>srHit(PRQ,x.o)).sort((a,b)=>(b.o.date||"").localeCompare(a.o.date||""));
+ const row=x=>{const o=x.o,done=isDone(o),st=x.t==="l"?lcrStL(o.kind,o.status):(o.status||"Done"),
+  open=x.t==="o"?`openO('${o.id}')`:x.t==="v"?`PM='${rd(o)}';tab='ovh';draw()`:`PM='${rd(o)}';tab='lcr';lcrEdit('${o.id}')`;
+  return `<div class="hist" style="display:block"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>${esc(o.plate||"-")}</b> · ${esc(o.motor||"")}<br><span style="color:var(--ac);font-size:12px;font-weight:600">${esc(x.k)}</span> <span style="color:var(--mu);font-size:12px">${esc(o.date||"")}${o.done&&o.done!==o.date?" → "+esc(o.done):""}</span><br><span style="color:var(--mu);font-size:12px"><span>Engine</span> ${o.eng?esc(o.eng):"-"}${x.t==="l"?` &nbsp; <span>Frame</span> ${o.frame?esc(o.frame):"-"}`:""}</span></div><div style="display:flex;gap:6px;align-items:center"><span style="font-size:12px;font-weight:700;color:${done?"var(--ok)":"var(--yl)"}">${esc(st)}</span><button class="btn" onclick="${open}">Open</button></div></div></div>`};
+ return `<div class="card"><div style="font-weight:700;margin-bottom:6px">Hasil pencarian (${R.length})</div>${R.length?R.map(row).join(""):`<div style="color:var(--mu)">Tidak ada pekerjaan yang cocok.</div>`}</div>`}
+function prSearch(v){PRQ=v;const r=document.getElementById("prqr");if(!r)return;r.innerHTML=srN(PRQ)?prSrHTML():vProc0();if(!srN(PRQ))mini(r)}
+
 function lcrFill(){const t=D.lcrTypes.find(x=>x.name===LF.motor);if(!t)return;const r=LF.kind==="R";LF.price=(r?t.rp:t.tp)||"";LF.mpay=(r?t.rm:t.tm)||"";LF.cost=t.c||"";LF.vamt=t.v||""}
 function lcrKind(k){if(LF.kind===k)return;LF.kind=k;if(!lcrSts(k).includes(LF.status)){LF.status=lcrSts(k)[0];if(LF.status!=="Done")LF.done=""}lcrFill();draw()}
 function lcrPickM(v){LF.motor=v;lcrFill();draw()}
@@ -1542,7 +1558,8 @@ function vLcr(){
  const job=e=>`<div class="hist" style="display:block"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>${esc(e.plate)}</b> · ${esc(e.motor)}${e.km?` · ${Math.round(e.km).toLocaleString("id-ID")} KM`:""}<br><span style="color:var(--ac);font-size:12px;font-weight:600">${LKIND[e.kind]}</span> <span style="color:var(--mu);font-size:12px">${e.date}${e.done&&e.done!==e.date?" → "+e.done:""}</span>${e.eng||e.frame?`<br><span style="color:var(--mu);font-size:12px">${e.eng?`<span>Engine</span> ${esc(e.eng)}`:""}${e.eng&&e.frame?" &nbsp;":""}${e.frame?`<span>Frame</span> ${esc(e.frame)}`:""}</span>`:""}${e.cust||e.phone?`<br><span style="color:var(--mu);font-size:12px">${e.cust?`<span>Customer</span> ${esc(e.cust)}`:""}${e.cust&&e.phone?" · ":""}${e.phone?esc(e.phone):""}</span>`:""}</div>
  <div style="text-align:right">${edB(e)}<b>${rp(e.price)}</b><br><span style="color:var(--mu);font-size:12px"><span>Mechanic pay</span> ${rp(e.mpay)} · <span>Cost</span> ${rp(e.cost)}</span><br><span class="store" style="font-size:12px"><span>Profit</span> ${rp(lcrPf(e))}</span>${num(e.vamt)>0?`<br><span style="font-size:12px;color:${e.vstat==="Claimed"?"var(--ok)":"var(--yl)"}"><span>Voucher</span> ${rp(e.vamt)}</span>`:""}</div></div>
  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px">${lcrSelSt(e,"lcrSt")}<select style="width:auto;font-size:12px" onchange="lcrMech('${e.id}',this.value)">${lcrMo(e.mech)}</select><input style="width:120px;font-size:12px" value="${esc(e.vno)}" placeholder="xxx xxx xxxx" inputmode="numeric" aria-label="Voucher number" onchange="lcrVNo('${e.id}',this.value)"><select style="width:auto;font-size:12px" aria-label="Voucher status" onchange="lcrVS('${e.id}',this.value)"><option value="Waiting" ${e.vstat!=="Claimed"?"selected":""}>Waiting</option><option value="Claimed" ${e.vstat==="Claimed"?"selected":""}>Claimed</option></select><button class="btn" style="font-size:12px;padding:2px 8px;min-height:30px" onclick="lcrEdit('${e.id}')">Edit</button><button class="btn x" style="padding:2px 8px;min-height:30px" onclick="lcrDel('${e.id}')">✕</button></div></div>`;
- return `<div class="card"><label>Month</label><select onchange="PM=this.value;draw()">${ms.map(m=>`<option value="${m}" ${m===PM?"selected":""}>${mName(m)}</option>`).join("")}</select></div>
+ LJOB=job;
+ return srBox("lq","lcrSearch",LQ)+`<div id="lqr">${lcrSrHTML()}</div>`+`<div class="card"><label>Month</label><select onchange="PM=this.value;draw()">${ms.map(m=>`<option value="${m}" ${m===PM?"selected":""}>${mName(m)}</option>`).join("")}</select></div>
  <div class="card"><h2>Add LCR job</h2>${ed?`<div style="color:var(--ac);margin-bottom:8px"><b>Editing</b> ${esc(ed.plate)}</div>`:""}
  <div class="g"><div style="grid-column:1/-1"><label>Job type</label><div style="display:flex;gap:6px">${["T","R"].map(k=>`<button type="button" class="btn ${LF.kind===k?"p":""}" style="flex:1" onclick="lcrKind('${k}')">${LKIND[k]}</button>`).join("")}</div></div>
  <div><label>Date</label><input type="date" value="${LF.date||today()}" oninput="LF.date=this.value"></div>
@@ -1603,7 +1620,8 @@ const lcrPay=()=>{const r=[];D.lcr.forEach(e=>{const m=num(e.mpay);if(!e.mech||m
 const extAll=()=>D.extras.concat(lcrPay());
 const lcrStore=e=>num(e.price)-num(e.cost)+(e.vstat==="Claimed"?num(e.vamt):0);
 let PRS="svc";
-function vProc(){
+function vProc(){return srBox("prq","prSearch",PRQ)+`<div id="prqr">${srN(PRQ)?prSrHTML():vProc0()}</div>`}
+function vProc0(){
  const ALL=[...D.orders.filter(o=>!isDone(o)),...D.ovh.filter(e=>!isDone(e)).map(e=>Object.assign({_ov:1},e))].sort((a,b)=>a.date.localeCompare(b.date)||byQ(a,b));
  const nSv=ALL.filter(o=>!o.po).length,nPo=ALL.length-nSv,
   subs=`<div style="display:flex;gap:6px;margin-bottom:12px"><button class="btn ${PRS==="svc"?"p":""}" style="flex:1" onclick="PRS='svc';draw()">Servis & Turmes (${nSv})</button><button class="btn ${PRS==="po"?"p":""}" style="flex:1" onclick="PRS='po';draw()">Hanya Sparepart (${nPo})</button><button class="btn ${PRS==='lcr'?'p':''}" style="flex:1" onclick="PRS='lcr';draw()">LCR (${D.lcr.filter(e=>!isDone(e)).length})</button></div>`,
